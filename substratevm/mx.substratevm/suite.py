@@ -77,42 +77,37 @@ suite = {
            },
         },
         "LLVM_WRAPPER_SHADOWED": {
-            "digest" : "sha512:bcb73fed249ef14e61b7be4153cede889de7aba4344884a54a84fc2d78f59a0b56b5045f390c378ffb727f454f26e48f92d2f6d4bad8a94ff05ad3949335c7f6",
-            "sourceDigest" : "sha512:31796d30a17df22e6624300f360cef39ce4a8ab06605d31fa4809f16ce347ebfa94e87e2ddedaf4d6e7b7682fa3192d8561bb056d797f09b27c101a9a0d98cde",
+            "digest" : "sha512:57634ec67b4bdb384514a151266900b606bb4399daf6ed347e938022860aa748bf4a0f5b28e62f91f9a4490f512dbb5a6a6ca165047d68f656aef12ecb233c68",
+            "sourceDigest" : "sha512:e4ca5565b69f95420af994f65a240b30d52ee4ebe83b2a3f7160307d94ae1769ec8faf92dc618513e63c26765e22f736fbf98dfc1596ca22770f7f02d9235e86",
             "dependencies" : ["JAVACPP_SHADOWED"],
-            "urlbase": "https://lafo.ssw.uni-linz.ac.at/pub/graal-external-deps/native-image",
-            "urls": ["{urlbase}/llvm-shadowed-13.0.1-1.5.7.jar"],
-            "sourceUrls": ["{urlbase}/llvm-shadowed-13.0.1-1.5.7-sources.jar"],
+            "urlbase": "https://repo1.maven.org/maven2/org/bytedeco/llvm/13.0.1-1.5.7",
+            "urls": ["{urlbase}/llvm-13.0.1-1.5.7.jar"],
+            "sourceUrls": ["{urlbase}/llvm-13.0.1-1.5.7-sources.jar"],
             "license" : "GPLv2-CPE",
-            "moduleName" : "com.oracle.svm.shadowed.org.bytedeco.llvm"
+            "moduleName" : "org.bytedeco.llvm"
         },
         "JAVACPP_SHADOWED": {
-            "digest" : "sha512:2b1d23f4c00f1ee04546aee4467622f78b0cca8d231e9bcb77e507ad6a3afb8bdad31a956d7a8bed801eae44c6f70215bf8f891156521768d9ee9726b3fd860f",
-            "sourceDigest" : "sha512:b84f22e2bd85407eb60fb6923d708d1928249064e2e405954558392f295fcb167738d095f4c926c4a470068409cb1db45d2da7729d1650769a68aa237492793f",
-            "urlbase": "https://lafo.ssw.uni-linz.ac.at/pub/graal-external-deps/native-image",
-            "urls": ["{urlbase}/javacpp-shadowed-1.5.7.jar"],
-            "sourceUrls": ["{urlbase}/javacpp-shadowed-1.5.7-sources.jar"],
+            "digest" : "sha512:b15cd9aa5d6a45339cc137fcbb2a100e92328895886d98239a86c62e5ff739387c10ea6cec9df755d5350aa4542bed36e82fc23209b79ca50a288e41d7107f5b",
+            "sourceDigest" : "sha512:f025c3da5253bb599fd9b767be62e8b9852fc068d13afae2e178767840565c9fcd2b77faa6e152e64f02e1d35c25cb89be3251eba5711cca7815825583a3a531",
+            "urlbase": "https://repo1.maven.org/maven2/org/bytedeco/javacpp/1.5.7",
+            "urls": ["{urlbase}/javacpp-1.5.7.jar"],
+            "sourceUrls": ["{urlbase}/javacpp-1.5.7-sources.jar"],
             "license" : "GPLv2-CPE",
-            "moduleName" : "com.oracle.svm.shadowed.org.bytedeco.javacpp"
+            "moduleName" : "org.bytedeco.javacpp"
         },
         "LLVM_PLATFORM_SPECIFIC_SHADOWED": {
-            "urlbase": "https://lafo.ssw.uni-linz.ac.at/pub/graal-external-deps/native-image",
+            "urlbase": "https://repo1.maven.org/maven2/org/bytedeco/llvm/13.0.1-1.5.7",
             "os_arch": {
                 "linux": {
                     "amd64": {
-                        "digest": "sha512:5cb593fe98d73fa7e40f10d4b4fb3dcb0a86dc23248089660ea48bb2fab5bb905ca6826eac3b3a9d1abaa41567b55ca809e4466f2b03721ecc6110ab460d5ae3",
-                        "urls": ["{urlbase}/llvm-shadowed-13.0.1-1.5.7_1-linux-x86_64.jar"],
-                        "moduleName" : "com.oracle.svm.shadowed.org.bytedeco.llvm.linux.x86_64"
+                        "digest": "sha512:5ee3c2cab208cb79897223d7c33b715cd02916a198b3d1c42f4a8a4702f6a4ff7da4bf4fa6a3fa2877c8fad1d0302fd0e3ab882748a915fc70f7649e55ab9cd7",
+                        "urls": ["{urlbase}/llvm-13.0.1-1.5.7-linux-x86_64.jar"],
+                        "moduleName" : "org.bytedeco.llvm.linux.x86_64"
                     },
                     "aarch64": {
-                        "digest": "sha512:ea31991151c21a2b74f88efa977cde4f3ff06a1501be9998b424e18a3e95d6f708fb95b1bc412050a7884a304ecb960663d5bd5265baee6a18b51d86d2d9940d",
-                        "urls": ["{urlbase}/llvm-shadowed-13.0.1-1.5.7_2-linux-arm64.jar"],
-                        "moduleName" : "com.oracle.svm.shadowed.org.bytedeco.llvm.linux.arm64"
-                    },
-                    "riscv64": {
-                        "digest": "sha512:e5bd006664ffadc7ef4c90fbc783a649e3a973ae2a10e76f0b8c2dd5363822ac0b120fd8639b22adf0dd9a3fc190cefa319854bdb2175cb30d6ac76aac358d8e",
-                        "urls": ["{urlbase}/llvm-shadowed-13.0.1-1.5.7-linux-riscv64.jar"],
-                        "moduleName" : "com.oracle.svm.shadowed.org.bytedeco.llvm.linux.riscv64"
+                        "digest": "sha512:933233f37a438026396e52e687376b733138d67e57cfe843f8ca0914bfa35791e31d020f5409d8712b6a0b435d49a1eaf7f816f72abf7dfef8984caef3c3e6bd",
+                        "urls": ["{urlbase}/llvm-13.0.1-1.5.7-linux-arm64.jar"],
+                        "moduleName" : "org.bytedeco.llvm.linux.arm64"
                     },
                     "<others>": {
                         "optional": True,
@@ -120,22 +115,28 @@ suite = {
                 },
                 "darwin": {
                     "amd64": {
-                        "digest": "sha512:e4ffea5a9f10a79b33b0981cc5e1ee84aa3200118ec4848b09c04ca882ad45fe8e30a495fcd57f829a2eb79a4e81930bfd137d12601df34b0d289d1883e471b8",
-                        "urls": ["{urlbase}/llvm-shadowed-13.0.1-1.5.7_1-macosx-x86_64.jar"],
-                        "moduleName" : "com.oracle.svm.shadowed.org.bytedeco.llvm.macosx.x86_64"
+                        "digest": "sha512:4459c2af48b9902230ccf20c30f54e3af0d4f0381bdd20ea18e0c79310fc29628130fbddd101153027cbee757722e232adc6c9008fb6138262381b8686efed08",
+                        "urls": ["{urlbase}/llvm-13.0.1-1.5.7-macosx-x86_64.jar"],
+                        "moduleName" : "org.bytedeco.llvm.macosx.x86_64"
                     },
                     "aarch64": {
-                        "digest": "sha512:c16b112ad4418e02336840fd3b87983a30dd1ddf24a45a6bac40d4ba5c471c2837c7556b014c06564aa389c094aba1030daea44181fb340eea1f352ffb111c2a",
-                        "urls": ["{urlbase}/llvm-shadowed-13.0.1-1.5.7-macosx-arm64.jar"],
+                        "digest": "sha512:7d4c4c7406f50c8f0d9d953193e7034c86fb34a4f415ccdc774524c0d5623c881b2dae3c2100c8b4e631fcfe9948cdf3f72d881ec06112825858f21961f5a9dd",
+                        "urls": ["{urlbase}/llvm-13.0.1-1.5.7-macosx-arm64.jar"],
+                        "moduleName" : "org.bytedeco.llvm.macosx.arm64"
+                    },
+                    "<others>": {
+                        "optional": True,
                     },
                 },
                 "windows": {
                     "amd64": {
-                        "urls": ["https://github.com/Throwaway68/gha-graal/releases/download/jars-1.5.7-graal.1/llvm-shadowed-13.0.1-1.5.7-graal.1-windows-x86_64.jar"],
-                        "digest": "sha512:64d5fead2d66e81c4c5ef3710e86bc2b16e8d2f8bddc7a63ebaa25ddad897d94c5839d0f99d5d038095b08878062a889f2459874e14ad90cdca66eaa7a3cd0d3",
-                        "moduleName": "com.oracle.svm.shadowed.org.bytedeco.llvm.windows.x86_64",
+                        "digest": "sha512:80764b074a481b1b4f7114ab612ecb8de71d29a7cbe191dca484367256f98b45add7f404cd2e315b477bac6ad7d66a8d643c9dc01be81c5729ea7c14d8b2251f",
+                        "urls": ["{urlbase}/llvm-13.0.1-1.5.7-windows-x86_64.jar"],
+                        "moduleName" : "org.bytedeco.llvm.windows.x86_64"
                     },
-                    "<others>": {"optional": True},
+                    "<others>": {
+                        "optional": True,
+                    },
                 },
                 "<others>": {
                     "<others>": {
@@ -145,23 +146,18 @@ suite = {
             },
         },
         "JAVACPP_PLATFORM_SPECIFIC_SHADOWED": {
-            "urlbase": "https://lafo.ssw.uni-linz.ac.at/pub/graal-external-deps/native-image",
+            "urlbase": "https://repo1.maven.org/maven2/org/bytedeco/javacpp/1.5.7",
             "os_arch": {
                 "linux": {
                     "amd64": {
-                        "digest": "sha512:07b6e40e256ccd9905834c8cfad0fbd1bf351944332d15aaea309a830475c48f4ddb2133bbd4ce9c0322fd951ead097b9aac6ede4c6b798f4a71eee7e6983202",
-                        "urls": ["{urlbase}/javacpp-shadowed-1.5.7_1-linux-x86_64.jar"],
-                        "moduleName" : "com.oracle.svm.shadowed.org.bytedeco.javacpp.linux.x86_64"
+                        "digest": "sha512:b3f2b19b78a3a7b99791903a48dc8484620c904ad6eeb1e5427fa038048ff68b1af10394297e3cf17c9e58ea10373df0082155dec0550953eae55d66d9db98db",
+                        "urls": ["{urlbase}/javacpp-1.5.7-linux-x86_64.jar"],
+                        "moduleName" : "org.bytedeco.javacpp.linux.x86_64"
                     },
                     "aarch64": {
-                        "digest": "sha512:621799f844d327114a2a1e3aaf80ea2ac972914ae2caf53e8e9b47beb8712de3164fc3ec83b0a3e8352dcda4e2684d3253aa9bb8c1772bca6dba248cfbc2ab1e",
-                        "urls": ["{urlbase}/javacpp-shadowed-1.5.7_2-linux-arm64.jar"],
-                        "moduleName" : "com.oracle.svm.shadowed.org.bytedeco.javacpp.linux.arm64"
-                    },
-                    "riscv64": {
-                        "digest": "sha512:95b1a2648ae2325fb581dfcc0d8ca86b0de5ef7471d733c6da84c739df4ce32555591b529192639086130a93bab32b771df4ee9317357101bf0b123b67af2764",
-                        "urls": ["{urlbase}/javacpp-shadowed-1.5.7-linux-riscv64.jar"],
-                        "moduleName" : "com.oracle.svm.shadowed.org.bytedeco.javacpp.linux.riscv64"
+                        "digest": "sha512:501a4efc428a463df94f8313c8153d3a4394ea2b05e1a851b523391aee98b98bbe78709df88d00b8e4576026af342be8d1088fd00130a735e7586e750b196521",
+                        "urls": ["{urlbase}/javacpp-1.5.7-linux-arm64.jar"],
+                        "moduleName" : "org.bytedeco.javacpp.linux.arm64"
                     },
                     "<others>": {
                         "optional": True,
@@ -169,22 +165,28 @@ suite = {
                 },
                 "darwin": {
                     "amd64": {
-                        "digest": "sha512:5d10565ab3139fb25708a1791cdbcaa0ad24ef03cdce15902f4ad1e1c4dd7e326d7232a3a08332c60bd66c0e1c9e45261080ddf51dda49bbf4ebb2f36f0b1d87",
-                        "urls": ["{urlbase}/javacpp-shadowed-1.5.7_1-macosx-x86_64.jar"],
-                        "moduleName" : "com.oracle.svm.shadowed.org.bytedeco.javacpp.macosx.x86_64"
+                        "digest": "sha512:a224cb348eeca7ba86017e6f70ef20de4df4e25a721083a9c1eabd42b60b469c8e9298f2251e9122c9eea61f1fa18b3d63621edb66df7f781ceaf9bf80694cbc",
+                        "urls": ["{urlbase}/javacpp-1.5.7-macosx-x86_64.jar"],
+                        "moduleName" : "org.bytedeco.javacpp.macosx.x86_64"
                     },
                     "aarch64": {
-                        "digest": "sha512:7c8631137616f4a29d4a692a99673c551137b0ff2f251909a2ab6468484accbc8f1ccfa6ead2c30b0c425f824b37d68e0a350ac23882f9fcc75d9ed7dd4b08a6",
-                        "urls": ["{urlbase}/javacpp-shadowed-1.5.7-macosx-arm64.jar"],
+                        "digest": "sha512:c54e11a743d52e541dc530de8c2c1d9d5625784aa84ff58ead887281e5b5328034a83651ef986552e09a78c144c56b682db4f6f4f03b4685e9a80d6caf27318c",
+                        "urls": ["{urlbase}/javacpp-1.5.7-macosx-arm64.jar"],
+                        "moduleName" : "org.bytedeco.javacpp.macosx.arm64"
+                    },
+                    "<others>": {
+                        "optional": True,
                     },
                 },
                 "windows": {
                     "amd64": {
-                        "urls": ["https://github.com/Throwaway68/gha-graal/releases/download/jars-1.5.7-graal.1/javacpp-shadowed-1.5.7-graal.1-windows-x86_64.jar"],
-                        "digest": "sha512:bc5e04f8b80cea785b0b6b9c0824030e5aeed99d5ed5b8610d9a9b895eb0a957f16c0660d87db6193892d3b2882ee74b1d7ad32d963007ba0a313d01ba94ce61",
-                        "moduleName": "com.oracle.svm.shadowed.org.bytedeco.javacpp.windows.x86_64",
+                        "digest": "sha512:fa0e70c5090662d6c4b29c59493a6daeb1763cfb9168db8a34000994b04fa52d0eb4037b367e987a2ca11e6c56a1036cd00f5f518a8ed9432dc89346bb8feb3b",
+                        "urls": ["{urlbase}/javacpp-1.5.7-windows-x86_64.jar"],
+                        "moduleName" : "org.bytedeco.javacpp.windows.x86_64"
                     },
-                    "<others>": {"optional": True},
+                    "<others>": {
+                        "optional": True,
+                    },
                 },
                 "<others>": {
                     "<others>": {

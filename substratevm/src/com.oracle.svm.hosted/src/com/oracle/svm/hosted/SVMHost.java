@@ -1061,8 +1061,8 @@ public class SVMHost extends HostVM {
     protected EconomicSet<Module> initializeSharedLayerForbiddenModules() {
         EconomicSet<Module> forbiddenModules = EconomicSet.create(20);
         forbiddenModules.add(JVMCI.class.getModule());
-        addForbiddenModule(forbiddenModules, "com.oracle.svm.shadowed.org.bytedeco.llvm.global.LLVM");
-        addForbiddenModule(forbiddenModules, "com.oracle.svm.shadowed.org.bytedeco.javacpp.presets.javacpp");
+        addForbiddenModule(forbiddenModules, "org.bytedeco.llvm.global.LLVM");
+        addForbiddenModule(forbiddenModules, "org.bytedeco.javacpp.presets.javacpp");
         addForbiddenModule(forbiddenModules, "com.oracle.truffle.polyglot.JDKSupport");
         addForbiddenModule(forbiddenModules, "com.oracle.truffle.runtime.hotspot.libgraal.LibGraal");
         return forbiddenModules;

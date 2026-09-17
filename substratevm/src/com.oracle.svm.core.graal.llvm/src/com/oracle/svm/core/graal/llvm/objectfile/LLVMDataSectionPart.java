@@ -32,7 +32,7 @@ import java.util.Map;
 import com.oracle.objectfile.ObjectFile;
 import com.oracle.svm.core.graal.llvm.util.LLVMIRBuilder;
 import com.oracle.svm.shared.util.VMError;
-import com.oracle.svm.shadowed.org.bytedeco.llvm.LLVM.LLVMValueRef;
+import org.bytedeco.llvm.LLVM.LLVMValueRef;
 
 public class LLVMDataSectionPart {
     private final LLVMIRBuilder builder;

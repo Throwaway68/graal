@@ -2198,13 +2198,12 @@ ce_llvm_backend = mx_sdk_vm.GraalVmSvmTool(
     stability="experimental-earlyadopter",
     jlink=False,
 )
-# GR-34811: upstream excludes windows and darwin-aarch64. This branch enables windows, which is
-# what the LLVM backend sources in this suite are ported for. darwin-aarch64 stays excluded: its
-# shadowed platform jars carry the module descriptor only under META-INF/versions/9 while their
-# manifest lacks `Multi-Release: true`, so the descriptor is invisible and archiving SVM_LLVM dies
-# with "java --describe-module com.oracle.svm.shadowed.org.bytedeco.llvm.macosx.arm64 failed"
-# (gha-graal run 35238742378). Re-manifesting those two jars is all it would take.
-llvm_supported = not (mx.is_darwin() and mx.get_arch() == "aarch64")
+# GR-34811: upstream excludes windows and darwin-aarch64 because Oracle's shadowed JavaCPP jars
+# do not support them - there is no windows-x86_64 build at all, and the macosx-arm64 pair is
+# missing `Multi-Release: true`, which hides its module descriptor. This branch sidesteps both by
+# using the stock org.bytedeco artifacts from Maven Central (see suite.py), so every platform the
+# backend is ported for is enabled.
+llvm_supported = True
 if llvm_supported:
     mx_sdk_vm.register_graalvm_component(ce_llvm_backend)
 

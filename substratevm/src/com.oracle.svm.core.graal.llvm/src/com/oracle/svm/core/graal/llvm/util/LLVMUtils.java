@@ -24,7 +24,7 @@
  */
 package com.oracle.svm.core.graal.llvm.util;
 
-import static com.oracle.svm.shadowed.org.bytedeco.llvm.global.LLVM.LLVMTypeOf;
+import static org.bytedeco.llvm.global.LLVM.LLVMTypeOf;
 import static jdk.graal.compiler.debug.GraalError.shouldNotReachHere;
 import static jdk.graal.compiler.debug.GraalError.unimplementedOverride;
 
@@ -38,9 +38,9 @@ import jdk.graal.compiler.lir.VirtualStackSlot;
 import com.oracle.svm.core.SubstrateTarget;
 import com.oracle.svm.core.config.ObjectLayout;
 import com.oracle.svm.core.graal.llvm.LLVMGenerator;
-import com.oracle.svm.shadowed.org.bytedeco.llvm.LLVM.LLVMTypeRef;
-import com.oracle.svm.shadowed.org.bytedeco.llvm.LLVM.LLVMValueRef;
-import com.oracle.svm.shadowed.org.bytedeco.llvm.global.LLVM;
+import org.bytedeco.llvm.LLVM.LLVMTypeRef;
+import org.bytedeco.llvm.LLVM.LLVMValueRef;
+import org.bytedeco.llvm.global.LLVM;
 
 import jdk.vm.ci.meta.Constant;
 import jdk.vm.ci.meta.JavaConstant;

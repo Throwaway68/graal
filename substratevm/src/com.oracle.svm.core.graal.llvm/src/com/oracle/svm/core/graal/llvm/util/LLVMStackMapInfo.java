@@ -35,9 +35,9 @@ import java.util.Set;
 import org.graalvm.collections.EconomicSet;
 
 import com.oracle.svm.core.SubstrateTarget;
-import com.oracle.svm.shadowed.org.bytedeco.llvm.LLVM.LLVMRelocationIteratorRef;
-import com.oracle.svm.shadowed.org.bytedeco.llvm.LLVM.LLVMSectionIteratorRef;
-import com.oracle.svm.shadowed.org.bytedeco.llvm.global.LLVM;
+import org.bytedeco.llvm.LLVM.LLVMRelocationIteratorRef;
+import org.bytedeco.llvm.LLVM.LLVMSectionIteratorRef;
+import org.bytedeco.llvm.global.LLVM;
 import jdk.graal.compiler.core.common.NumUtil;
 
 /**
