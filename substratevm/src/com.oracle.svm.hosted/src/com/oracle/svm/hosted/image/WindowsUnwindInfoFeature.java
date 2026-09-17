@@ -95,6 +95,15 @@ import jdk.graal.compiler.core.common.NumUtil;
 @Platforms(InternalPlatform.WINDOWS_BASE.class)
 public class WindowsUnwindInfoFeature implements InternalFeature {
     @Override
+    public boolean isInConfiguration(IsInConfigurationAccess access) {
+        /*
+         * The LLVM backend emits .pdata and .xdata for the Java methods into its own object file,
+         * and its compilation results carry no prologue marks to derive them from here.
+         */
+        return !SubstrateOptions.useLLVMBackend();
+    }
+
+    @Override
     public void beforeImageWrite(BeforeImageWriteAccess access) {
         AbstractImage image = ((FeatureImpl.BeforeImageWriteAccessImpl) access).getImage();
         ObjectFile objectFile = image.getObjectFile();
