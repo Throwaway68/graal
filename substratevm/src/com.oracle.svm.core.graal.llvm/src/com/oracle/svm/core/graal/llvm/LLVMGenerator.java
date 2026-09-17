@@ -294,6 +294,9 @@ public class LLVMGenerator extends CoreProvidersDelegate implements LIRGenerator
         builder.setMainFunction(functionName, getLLVMFunctionType(method, true));
         builder.setTarget(LLVMTargetSpecific.get().getTargetTriple());
         builder.setFunctionLinkage(LinkageType.External);
+        if (LLVMWindowsSupport.isWindows()) {
+            builder.setSection(LLVMWindowsSupport.CODE_SECTION);
+        }
         builder.setFunctionAttribute(Attribute.NoInline);
         if (GuestAnnotationAccess.isAnnotationPresent(method, NeverInline.class)) {
             builder.setFunctionAttribute(Attribute.NoIPA);

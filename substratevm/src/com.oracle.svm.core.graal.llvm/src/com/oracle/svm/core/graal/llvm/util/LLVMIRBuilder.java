@@ -187,6 +187,14 @@ public class LLVMIRBuilder implements AutoCloseable {
         LLVM.LLVMSetTarget(module, target);
     }
 
+    public void setModuleInlineAsm(String asm) {
+        LLVM.LLVMSetModuleInlineAsm2(module, asm, asm.length());
+    }
+
+    public void setSection(String section) {
+        setSection(function, section);
+    }
+
     public static void setSection(LLVMValueRef global, String section) {
         LLVM.LLVMSetSection(global, section);
     }

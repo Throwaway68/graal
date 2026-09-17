@@ -39,6 +39,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -170,6 +171,10 @@ public class LLVMNativeImageCodeCache extends NativeImageCodeCache {
             batchSize = idealSize;
         }
 
+        if (LLVMWindowsSupport.isWindows()) {
+            batchSize = 0; /* one object: there is no relocatable link on PE/COFF */
+        }
+
         if (batchSize == 0) {
             batchSize = methodIndex.length;
         }
@@ -181,11 +186,29 @@ public class LLVMNativeImageCodeCache extends NativeImageCodeCache {
             executor.forEach(numBatches, batchId -> _ -> {
                 List<String> batchInputs = IntStream.range(getBatchStart(batchId), getBatchEnd(batchId)).mapToObj(this::getBitcodeFilename)
                                 .collect(Collectors.toList());
+                if (LLVMWindowsSupport.isWindows() && batchId == 0) {
+                    batchInputs.add(writeSupportModule());
+                }
                 llvmLink(debug, getBatchBitcodeFilename(batchId), batchInputs, basePath, this::getFunctionName);
             });
         }
 
         return numBatches;
+    }
+
+    /**
+     * Writes the bitcode of the Windows support module, which defines the code section boundary
+     * symbols, and returns its file name so that it can be linked into the single batch.
+     */
+    private String writeSupportModule() {
+        String name = "win-support.bc";
+        byte[] bitcode = LLVMWindowsSupport.buildSupportModule(NativeImage.getTextSectionStartSymbol(), NativeImage.getTextSectionEndSymbol());
+        try (FileOutputStream fos = new FileOutputStream(basePath.resolve(name).toString())) {
+            fos.write(bitcode);
+        } catch (IOException e) {
+            throw new GraalError(e);
+        }
+        return name;
     }
 
     private void compileBitcodeBatches(BatchExecutor executor, DebugContext debug, int numBatches) {
@@ -201,8 +224,18 @@ public class LLVMNativeImageCodeCache extends NativeImageCodeCache {
     }
 
     private void linkCompiledBatches(DebugContext debug, BatchExecutor executor, int numBatches) {
-        List<String> compiledBatches = IntStream.range(0, numBatches).mapToObj(this::getBatchCompiledFilename).collect(Collectors.toList());
-        nativeLink(debug, getLinkedFilename(), compiledBatches, basePath, this::getFunctionName);
+        if (LLVMWindowsSupport.isWindows()) {
+            /* PE/COFF has no relocatable link: the single batch object is the linked object. */
+            VMError.guarantee(numBatches == 1, "Windows uses a single LLVM batch");
+            try {
+                Files.copy(getBatchCompiledPath(0), getLinkedPath(), StandardCopyOption.REPLACE_EXISTING);
+            } catch (IOException e) {
+                throw new GraalError(e);
+            }
+        } else {
+            List<String> compiledBatches = IntStream.range(0, numBatches).mapToObj(this::getBatchCompiledFilename).collect(Collectors.toList());
+            nativeLink(debug, getLinkedFilename(), compiledBatches, basePath, this::getFunctionName);
+        }
 
         LLVMTextSectionInfo textSectionInfo = objectFileReader.parseCode(getLinkedPath());
 
@@ -233,7 +266,10 @@ public class LLVMNativeImageCodeCache extends NativeImageCodeCache {
         long codeAreaSize = textSectionInfo.getCodeSize();
         assert codeAreaSize <= Integer.MAX_VALUE;
         llvmCleanupRISCVAttributes(debug, getLinkedFilename(), basePath);
-        llvmAddTextSectionSymbols(debug, getLinkedFilename(), NativeImage.getTextSectionStartSymbol(), NativeImage.getTextSectionEndSymbol(), codeAreaSize, basePath);
+        if (!LLVMWindowsSupport.isWindows()) {
+            /* On Windows the symbols come from the marker sections of the support module. */
+            llvmAddTextSectionSymbols(debug, getLinkedFilename(), NativeImage.getTextSectionStartSymbol(), NativeImage.getTextSectionEndSymbol(), codeAreaSize, basePath);
+        }
         setCodeAreaSize((int) textSectionInfo.getCodeSize());
     }
 
@@ -266,7 +302,8 @@ public class LLVMNativeImageCodeCache extends NativeImageCodeCache {
     }
 
     private static String getLinkedFilename() {
-        return "llvm.o";
+        /* cl.exe only passes files it recognizes as objects on to the linker. */
+        return LLVMWindowsSupport.isWindows() ? "llvm.obj" : "llvm.o";
     }
 
     private int getBatchStart(int id) {
@@ -279,7 +316,7 @@ public class LLVMNativeImageCodeCache extends NativeImageCodeCache {
 
     private String getFunctionName(String fileName) {
         String function;
-        if (fileName.equals("llvm.o")) {
+        if (fileName.equals(getLinkedFilename())) {
             function = "the final object file";
         } else {
             char type = fileName.charAt(0);

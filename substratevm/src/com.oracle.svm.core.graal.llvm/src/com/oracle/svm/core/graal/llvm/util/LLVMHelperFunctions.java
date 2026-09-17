@@ -28,6 +28,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import com.oracle.svm.core.config.ObjectLayout;
+import com.oracle.svm.core.graal.llvm.LLVMWindowsSupport;
 import com.oracle.svm.core.graal.llvm.util.LLVMIRBuilder.Attribute;
 import com.oracle.svm.core.graal.llvm.util.LLVMIRBuilder.LinkageType;
 import org.bytedeco.llvm.LLVM.LLVMBasicBlockRef;
@@ -133,6 +134,9 @@ class LLVMHelperFunctions {
     private LLVMValueRef buildIntToObjectFunction(boolean compressed) {
         String funcName = compressed ? INT_TO_COMPRESSED_OBJECT_FUNCTION_NAME : INT_TO_OBJECT_FUNCTION_NAME;
         LLVMValueRef func = builder.addFunction(funcName, builder.functionType(builder.objectType(compressed), builder.wordType()));
+        if (LLVMWindowsSupport.isWindows()) {
+            LLVMIRBuilder.setSection(func, LLVMWindowsSupport.CODE_SECTION);
+        }
         LLVMIRBuilder.setLinkage(func, LinkageType.LinkOnce);
         builder.setFunctionAttribute(func, Attribute.AlwaysInline);
         builder.setFunctionAttribute(func, Attribute.GCLeafFunction);
@@ -152,6 +156,9 @@ class LLVMHelperFunctions {
     private LLVMValueRef buildLoadObjectFromUntrackedPointerFunction(boolean compressed) {
         String funcName = compressed ? LOAD_COMPRESSED_OBJECT_FROM_UNTRACKED_POINTER_FUNCTION_NAME : LOAD_OBJECT_FROM_UNTRACKED_POINTER_FUNCTION_NAME;
         LLVMValueRef func = builder.addFunction(funcName, builder.functionType(builder.objectType(compressed), builder.rawPointerType()));
+        if (LLVMWindowsSupport.isWindows()) {
+            LLVMIRBuilder.setSection(func, LLVMWindowsSupport.CODE_SECTION);
+        }
         LLVMIRBuilder.setLinkage(func, LinkageType.LinkOnce);
         builder.setFunctionAttribute(func, Attribute.AlwaysInline);
         builder.setFunctionAttribute(func, Attribute.GCLeafFunction);
@@ -172,6 +179,9 @@ class LLVMHelperFunctions {
     private LLVMValueRef buildAtomicObjectXchgFunction(boolean compressed) {
         String funcName = compressed ? ATOMIC_COMPRESSED_OBJECT_XCHG_FUNCTION_NAME : ATOMIC_OBJECT_XCHG_FUNCTION_NAME;
         LLVMValueRef func = builder.addFunction(funcName, builder.functionType(builder.objectType(compressed), builder.rawPointerType(), builder.objectType(compressed)));
+        if (LLVMWindowsSupport.isWindows()) {
+            LLVMIRBuilder.setSection(func, LLVMWindowsSupport.CODE_SECTION);
+        }
         LLVMIRBuilder.setLinkage(func, LinkageType.LinkOnce);
         builder.setFunctionAttribute(func, Attribute.AlwaysInline);
         builder.setFunctionAttribute(func, Attribute.GCLeafFunction);
@@ -199,6 +209,9 @@ class LLVMHelperFunctions {
         LLVMTypeRef exchangeType = builder.objectType(compressed);
         LLVMValueRef func = builder.addFunction(funcName,
                         builder.functionType(returnsValue ? exchangeType : builder.booleanType(), builder.rawPointerType(), exchangeType, exchangeType));
+        if (LLVMWindowsSupport.isWindows()) {
+            LLVMIRBuilder.setSection(func, LLVMWindowsSupport.CODE_SECTION);
+        }
         LLVMIRBuilder.setLinkage(func, LinkageType.LinkOnce);
         builder.setFunctionAttribute(func, Attribute.AlwaysInline);
         builder.setFunctionAttribute(func, Attribute.GCLeafFunction);
@@ -248,6 +261,9 @@ class LLVMHelperFunctions {
     private LLVMValueRef buildCompressFunction(boolean nonNull, int shift) {
         String funcName = COMPRESS_FUNCTION_BASE_NAME + (nonNull ? "_nonNull" : "") + "_" + shift;
         LLVMValueRef func = builder.addFunction(funcName, builder.functionType(builder.objectType(true), builder.objectType(false), builder.wordType()));
+        if (LLVMWindowsSupport.isWindows()) {
+            LLVMIRBuilder.setSection(func, LLVMWindowsSupport.CODE_SECTION);
+        }
         LLVMIRBuilder.setLinkage(func, LinkageType.LinkOnce);
         builder.setFunctionAttribute(func, Attribute.AlwaysInline);
         builder.setFunctionAttribute(func, Attribute.GCLeafFunction);
@@ -279,6 +295,9 @@ class LLVMHelperFunctions {
     private LLVMValueRef buildUncompressFunction(boolean nonNull, int shift) {
         String funcName = UNCOMPRESS_FUNCTION_BASE_NAME + (nonNull ? "_nonNull" : "") + "_" + shift;
         LLVMValueRef func = builder.addFunction(funcName, builder.functionType(builder.objectType(false), builder.objectType(true), builder.wordType()));
+        if (LLVMWindowsSupport.isWindows()) {
+            LLVMIRBuilder.setSection(func, LLVMWindowsSupport.CODE_SECTION);
+        }
         LLVMIRBuilder.setLinkage(func, LinkageType.LinkOnce);
         builder.setFunctionAttribute(func, Attribute.AlwaysInline);
         builder.setFunctionAttribute(func, Attribute.GCLeafFunction);

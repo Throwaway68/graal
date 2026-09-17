@@ -66,7 +66,7 @@ public class LLVMToolchainUtils {
             LLVMToolchain.runLLVMCommand("opt", basePath, args);
         } catch (LLVMToolchain.RunFailureException e) {
             debug.log("%s", e.getOutput());
-            throw new GraalError("LLVM optimization failed for " + outputPathFormat.apply(inputPath) + ": " + e.getStatus() + System.lineSeparator() + "Command: opt " + String.join(" ", args));
+            throw new GraalError("LLVM optimization failed for " + outputPathFormat.apply(inputPath) + ": " + e.getStatus() + System.lineSeparator() + "Command: opt " + String.join(" ", args) + toolOutput(e));
         }
     }
 
@@ -92,7 +92,7 @@ public class LLVMToolchainUtils {
             LLVMToolchain.runLLVMCommand("llc", basePath, args);
         } catch (LLVMToolchain.RunFailureException e) {
             debug.log("%s", e.getOutput());
-            throw new GraalError("LLVM compilation failed for " + outputPathFormat.apply(inputPath) + ": " + e.getStatus() + System.lineSeparator() + "Command: llc " + String.join(" ", args));
+            throw new GraalError("LLVM compilation failed for " + outputPathFormat.apply(inputPath) + ": " + e.getStatus() + System.lineSeparator() + "Command: llc " + String.join(" ", args) + toolOutput(e));
         }
     }
 
@@ -115,7 +115,7 @@ public class LLVMToolchainUtils {
             LLVMToolchain.runLLVMCommand("llvm-link", basePath, args);
         } catch (LLVMToolchain.RunFailureException e) {
             debug.log("%s", e.getOutput());
-            throw new GraalError("LLVM linking failed into " + outputPathFormat.apply(outputPath) + ": " + e.getStatus());
+            throw new GraalError("LLVM linking failed into " + outputPathFormat.apply(outputPath) + ": " + e.getStatus() + toolOutput(e));
         }
     }
 
@@ -137,7 +137,7 @@ public class LLVMToolchainUtils {
             }
         } catch (LLVMToolchain.RunFailureException e) {
             debug.log("%s", e.getOutput());
-            throw new GraalError("Native linking failed into " + outputPathFormat.apply(outputPath) + ": " + e.getStatus());
+            throw new GraalError("Native linking failed into " + outputPathFormat.apply(outputPath) + ": " + e.getStatus() + toolOutput(e));
         }
     }
 
@@ -150,7 +150,7 @@ public class LLVMToolchainUtils {
             LLVMToolchain.runLLVMCommand("llvm-objcopy", basePath, args);
         } catch (LLVMToolchain.RunFailureException e) {
             debug.log("%s", e.getOutput());
-            throw new GraalError("Removing stack maps failed for " + inputPath + ": " + e.getStatus() + System.lineSeparator() + "Command: llvm-objcopy " + String.join(" ", args));
+            throw new GraalError("Removing stack maps failed for " + inputPath + ": " + e.getStatus() + System.lineSeparator() + "Command: llvm-objcopy " + String.join(" ", args) + toolOutput(e));
         }
     }
 
@@ -167,7 +167,7 @@ public class LLVMToolchainUtils {
             LLVMToolchain.runLLVMCommand("llvm-objcopy", basePath, args);
         } catch (LLVMToolchain.RunFailureException e) {
             debug.log("%s", e.getOutput());
-            throw new GraalError("Removing RISC-V attributes failed for " + inputPath + ": " + e.getStatus() + System.lineSeparator() + "Command: llvm-objcopy " + String.join(" ", args));
+            throw new GraalError("Removing RISC-V attributes failed for " + inputPath + ": " + e.getStatus() + System.lineSeparator() + "Command: llvm-objcopy " + String.join(" ", args) + toolOutput(e));
         }
     }
 
@@ -183,8 +183,14 @@ public class LLVMToolchainUtils {
             LLVMToolchain.runLLVMCommand("llvm-objcopy", basePath, args);
         } catch (LLVMToolchain.RunFailureException e) {
             debug.log("%s", e.getOutput());
-            throw new GraalError("Adding text section symbols failed for " + inputPath + ": " + e.getStatus() + System.lineSeparator() + "Command: llvm-objcopy " + String.join(" ", args));
+            throw new GraalError("Adding text section symbols failed for " + inputPath + ": " + e.getStatus() + System.lineSeparator() + "Command: llvm-objcopy " + String.join(" ", args) + toolOutput(e));
         }
+    }
+
+    /** The tool's own output; {@code debug.log} only reaches the log with -H:Log set. */
+    private static String toolOutput(LLVMToolchain.RunFailureException e) {
+        String output = e.getOutput();
+        return (output == null || output.isEmpty()) ? "" : System.lineSeparator() + output;
     }
 
     public static final class BatchExecutor {

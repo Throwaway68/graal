@@ -42,6 +42,7 @@ import com.oracle.objectfile.SectionName;
 import com.oracle.svm.core.SubstrateTarget;
 import com.oracle.svm.core.graal.llvm.LLVMGenerator;
 import com.oracle.svm.core.graal.llvm.LLVMNativeImageCodeCache.StackMapDumper;
+import com.oracle.svm.core.graal.llvm.LLVMWindowsSupport;
 import com.oracle.svm.core.heap.SubstrateReferenceMap;
 import com.oracle.svm.hosted.meta.HostedMethod;
 import org.bytedeco.javacpp.BytePointer;
@@ -85,7 +86,7 @@ public class LLVMObjectFileReader {
         private List<Symbol> symbolInfo = new ArrayList<>();
     }
 
-    private static <SectionInfo, SymbolInfo> LLVMSectionInfo<SectionInfo, SymbolInfo> readSection(Path path, SectionName sectionName, SectionReader<SectionInfo> sectionReader,
+    private static <SectionInfo, SymbolInfo> LLVMSectionInfo<SectionInfo, SymbolInfo> readSection(Path path, String sectionPrefix, SectionReader<SectionInfo> sectionReader,
                     SymbolReader<SymbolInfo> symbolReader) {
         byte[] bytes;
         try {
@@ -103,7 +104,7 @@ public class LLVMObjectFileReader {
         for (sectionIterator = LLVM.LLVMGetSections(objectFile); LLVM.LLVMIsSectionIteratorAtEnd(objectFile, sectionIterator) == FALSE; LLVM.LLVMMoveToNextSection(sectionIterator)) {
             BytePointer sectionNamePointer = LLVM.LLVMGetSectionName(sectionIterator);
             String currentSectionName = (sectionNamePointer != null) ? sectionNamePointer.getString() : "";
-            if (currentSectionName.startsWith(sectionName.getFormatDependentName(ObjectFile.getNativeFormat()))) {
+            if (currentSectionName.startsWith(sectionPrefix)) {
                 result.sectionInfo = sectionReader.apply(sectionIterator, relocationsSectionIterator);
 
                 if (symbolReader != null) {
@@ -138,7 +139,13 @@ public class LLVMObjectFileReader {
     }
 
     public LLVMTextSectionInfo parseCode(Path objectFile) {
-        LLVMSectionInfo<Long, SymbolOffset> sectionInfo = readSection(objectFile, SectionName.TEXT, this::parseTextSection, this::handleTextSymbol);
+        /*
+         * On Windows the Java code lives in its own grouped section and the name has to match
+         * exactly: COMDAT helper sections are named .text as well, and the code section markers are
+         * .text$svm0 and .text$svm2. Neither of those is matched by .text$svm1.
+         */
+        String codeSectionName = LLVMWindowsSupport.isWindows() ? LLVMWindowsSupport.CODE_SECTION : SectionName.TEXT.getFormatDependentName(ObjectFile.getNativeFormat());
+        LLVMSectionInfo<Long, SymbolOffset> sectionInfo = readSection(objectFile, codeSectionName, this::parseTextSection, this::handleTextSymbol);
         return new LLVMTextSectionInfo(sectionInfo);
     }
 
@@ -154,7 +161,7 @@ public class LLVMObjectFileReader {
     }
 
     public LLVMStackMapInfo parseStackMap(Path objectFile) {
-        LLVMSectionInfo<LLVMStackMapInfo, Object> sectionInfo = readSection(objectFile, SectionName.LLVM_STACKMAPS, this::readStackMapSection, null);
+        LLVMSectionInfo<LLVMStackMapInfo, Object> sectionInfo = readSection(objectFile, SectionName.LLVM_STACKMAPS.getFormatDependentName(ObjectFile.getNativeFormat()), this::readStackMapSection, null);
         return sectionInfo.sectionInfo;
     }
 
