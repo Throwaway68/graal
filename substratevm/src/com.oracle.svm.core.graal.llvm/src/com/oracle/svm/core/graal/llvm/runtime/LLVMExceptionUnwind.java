@@ -32,11 +32,10 @@ import java.util.function.BooleanSupplier;
 import org.graalvm.nativeimage.CurrentIsolate;
 import org.graalvm.nativeimage.IsolateThread;
 import org.graalvm.nativeimage.c.CContext;
-import org.graalvm.nativeimage.c.constant.CConstant;
 import org.graalvm.nativeimage.c.function.CEntryPoint;
 import org.graalvm.nativeimage.c.function.CFunction;
-import org.graalvm.nativeimage.c.struct.CField;
-import org.graalvm.nativeimage.c.struct.CStruct;
+import org.graalvm.nativeimage.c.struct.RawField;
+import org.graalvm.nativeimage.c.struct.RawStructure;
 import org.graalvm.nativeimage.c.type.CIntPointer;
 import org.graalvm.word.Pointer;
 import org.graalvm.word.PointerBase;
@@ -174,49 +173,40 @@ public class LLVMExceptionUnwind {
 
     // Allow methods with non-standard names: Checkstyle: stop
 
-    // The following declarations are from <unwind.h>.
+    // The following declarations mirror <unwind.h>. They are written out by hand rather than
+    // read from the header (@CConstant, @CStruct) because Windows has no <unwind.h> at image
+    // build time: libunwind ships one only on the platforms whose toolchain headers the C
+    // compiler used for the header queries can see. The values are fixed by the Itanium C++ ABI
+    // and are the same in libgcc and in libunwind on every platform this backend targets.
     //
     // See:
     // - https://clang.llvm.org/doxygen/unwind_8h_source.html
     // - https://gcc.gnu.org/git/?p=gcc.git;a=blob;f=libgcc/unwind-generic.h
 
     /* _Unwind_Reason_Code */
-    @CConstant
-    private static native int _URC_FATAL_PHASE1_ERROR();
-
-    @CConstant
-    private static native int _URC_HANDLER_FOUND();
-
-    @CConstant
-    private static native int _URC_INSTALL_CONTEXT();
-
-    @CConstant
-    private static native int _URC_CONTINUE_UNWIND();
-
-    /* _Unwind_Action */
-    @CConstant
-    private static native int _UA_SEARCH_PHASE();
-
-    @CConstant
-    private static native int _UA_CLEANUP_PHASE();
-
-    @CStruct(addStructKeyword = true)
-    private interface _Unwind_Exception extends PointerBase {
-        @CField
-        PointerBase exception_class();
-
-        @CField
-        void set_exception_class(PointerBase value);
-
-        @CField
-        PointerBase exception_cleanup();
-
-        @CField
-        void set_exception_cleanup(PointerBase value);
+    private static int _URC_FATAL_PHASE1_ERROR() {
+        return 3;
     }
 
-    @CStruct(addStructKeyword = true, isIncomplete = true)
-    private interface _Unwind_Context extends PointerBase {
+    private static int _URC_HANDLER_FOUND() {
+        return 6;
+    }
+
+    private static int _URC_INSTALL_CONTEXT() {
+        return 7;
+    }
+
+    private static int _URC_CONTINUE_UNWIND() {
+        return 8;
+    }
+
+    /* _Unwind_Action */
+    private static int _UA_SEARCH_PHASE() {
+        return 1;
+    }
+
+    private static int _UA_CLEANUP_PHASE() {
+        return 2;
     }
 
     @CFunction(value = "_Unwind_RaiseException", transition = NO_TRANSITION)
@@ -236,6 +226,78 @@ public class LLVMExceptionUnwind {
 
     @CFunction(value = "_Unwind_GetLanguageSpecificData", transition = NO_TRANSITION)
     public static native Pointer getLanguageSpecificData(_Unwind_Context context);
+}
+
+/**
+ * Layout of libunwind's {@code struct _Unwind_Exception}. Declared as a raw structure so that no
+ * header is needed at build time: {@code private_} has six words on Windows (SEH mode) and two
+ * elsewhere, and six is a safe superset. Raw structures are laid out by
+ * {@code RawStructureLayoutPlanner} in field-size-descending, then alphabetical order; with all
+ * fields one word wide that puts {@code exception_class} at offset 0 and {@code exception_cleanup}
+ * at offset 8, which is what the C struct requires - libunwind passes the first field's value to
+ * the personality function as its {@code exceptionClass} argument. Alignment: libunwind only reads
+ * the fields through the pointer, so the 16-byte alignment of the C declaration is not required.
+ * <p>
+ * This is a top-level type on purpose. A raw structure nested in {@link LLVMExceptionUnwind} would
+ * inherit that class's {@link CContext}, and only raw structures in the built-in context get their
+ * layout planned.
+ * <p>
+ * Every {@code private_} word needs a getter and a setter because {@code @RawStructure} fields do;
+ * nothing in Java reads or writes them, they are storage for libunwind.
+ */
+@RawStructure
+interface _Unwind_Exception extends PointerBase {
+    @RawField
+    PointerBase exception_class();
+
+    @RawField
+    void set_exception_class(PointerBase value);
+
+    @RawField
+    PointerBase exception_cleanup();
+
+    @RawField
+    void set_exception_cleanup(PointerBase value);
+
+    @RawField
+    long private0();
+
+    @RawField
+    void set_private0(long value);
+
+    @RawField
+    long private1();
+
+    @RawField
+    void set_private1(long value);
+
+    @RawField
+    long private2();
+
+    @RawField
+    void set_private2(long value);
+
+    @RawField
+    long private3();
+
+    @RawField
+    void set_private3(long value);
+
+    @RawField
+    long private4();
+
+    @RawField
+    void set_private4(long value);
+
+    @RawField
+    long private5();
+
+    @RawField
+    void set_private5(long value);
+}
+
+/** Opaque pointer to libunwind's {@code struct _Unwind_Context}. */
+interface _Unwind_Context extends PointerBase {
 }
 
 // Checkstyle: resume

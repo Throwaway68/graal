@@ -27,6 +27,7 @@ package com.oracle.svm.core.graal.llvm.util;
 import java.util.Collections;
 import java.util.List;
 
+import org.graalvm.nativeimage.Platform;
 import org.graalvm.nativeimage.c.CContext;
 
 import com.oracle.svm.core.SubstrateOptions;
@@ -39,11 +40,11 @@ public class LLVMDirectives implements CContext.Directives {
 
     @Override
     public List<String> getHeaderFiles() {
-        return Collections.singletonList("<unwind.h>");
+        return Platform.includedIn(Platform.WINDOWS.class) ? Collections.emptyList() : Collections.singletonList("<unwind.h>");
     }
 
     @Override
     public List<String> getLibraries() {
-        return Collections.singletonList("m");
+        return Platform.includedIn(Platform.WINDOWS.class) ? Collections.emptyList() : Collections.singletonList("m");
     }
 }

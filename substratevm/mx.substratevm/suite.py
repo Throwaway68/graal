@@ -125,9 +125,18 @@ suite = {
                         "moduleName" : "com.oracle.svm.shadowed.org.bytedeco.llvm.macosx.x86_64"
                     },
                     "aarch64": {
-                        "digest": "sha512:c16b112ad4418e02336840fd3b87983a30dd1ddf24a45a6bac40d4ba5c471c2837c7556b014c06564aa389c094aba1030daea44181fb340eea1f352ffb111c2a",
                         "urls": ["{urlbase}/llvm-shadowed-13.0.1-1.5.7-macosx-arm64.jar"],
+                        "digest": "sha512:c16b112ad4418e02336840fd3b87983a30dd1ddf24a45a6bac40d4ba5c471c2837c7556b014c06564aa389c094aba1030daea44181fb340eea1f352ffb111c2a",
+                        "moduleName": "com.oracle.svm.shadowed.org.bytedeco.llvm.macosx.arm64",
                     },
+                },
+                "windows": {
+                    "amd64": {
+                        "urls": ["https://github.com/Throwaway68/gha-graal/releases/download/jars-1.5.7-graal.1/llvm-shadowed-13.0.1-1.5.7-graal.1-windows-x86_64.jar"],
+                        "digest": "sha512:64d5fead2d66e81c4c5ef3710e86bc2b16e8d2f8bddc7a63ebaa25ddad897d94c5839d0f99d5d038095b08878062a889f2459874e14ad90cdca66eaa7a3cd0d3",
+                        "moduleName": "com.oracle.svm.shadowed.org.bytedeco.llvm.windows.x86_64",
+                    },
+                    "<others>": {"optional": True},
                 },
                 "<others>": {
                     "<others>": {
@@ -166,9 +175,18 @@ suite = {
                         "moduleName" : "com.oracle.svm.shadowed.org.bytedeco.javacpp.macosx.x86_64"
                     },
                     "aarch64": {
-                        "digest": "sha512:7c8631137616f4a29d4a692a99673c551137b0ff2f251909a2ab6468484accbc8f1ccfa6ead2c30b0c425f824b37d68e0a350ac23882f9fcc75d9ed7dd4b08a6",
                         "urls": ["{urlbase}/javacpp-shadowed-1.5.7-macosx-arm64.jar"],
+                        "digest": "sha512:7c8631137616f4a29d4a692a99673c551137b0ff2f251909a2ab6468484accbc8f1ccfa6ead2c30b0c425f824b37d68e0a350ac23882f9fcc75d9ed7dd4b08a6",
+                        "moduleName": "com.oracle.svm.shadowed.org.bytedeco.javacpp.macosx.arm64",
                     },
+                },
+                "windows": {
+                    "amd64": {
+                        "urls": ["https://github.com/Throwaway68/gha-graal/releases/download/jars-1.5.7-graal.1/javacpp-shadowed-1.5.7-graal.1-windows-x86_64.jar"],
+                        "digest": "sha512:bc5e04f8b80cea785b0b6b9c0824030e5aeed99d5ed5b8610d9a9b895eb0a957f16c0660d87db6193892d3b2882ee74b1d7ad32d963007ba0a313d01ba94ce61",
+                        "moduleName": "com.oracle.svm.shadowed.org.bytedeco.javacpp.windows.x86_64",
+                    },
+                    "<others>": {"optional": True},
                 },
                 "<others>": {
                     "<others>": {

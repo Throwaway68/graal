@@ -2198,8 +2198,9 @@ ce_llvm_backend = mx_sdk_vm.GraalVmSvmTool(
     stability="experimental-earlyadopter",
     jlink=False,
 )
-# GR-34811
-llvm_supported = not (mx.is_windows() or (mx.is_darwin() and mx.get_arch() == "aarch64"))
+# GR-34811: upstream excludes windows and darwin-aarch64. This branch enables both:
+# darwin-aarch64 only needed moduleName entries in suite.py; windows is ported.
+llvm_supported = True
 if llvm_supported:
     mx_sdk_vm.register_graalvm_component(ce_llvm_backend)
 

@@ -88,7 +88,7 @@ import jdk.vm.ci.meta.MetaAccessProvider;
  * from Graal graphs, and compile this bitcode into machine code.
  */
 @AutomaticallyRegisteredFeature
-@Platforms({Platform.LINUX.class, Platform.DARWIN.class})
+@Platforms({Platform.LINUX.class, Platform.DARWIN.class, Platform.WINDOWS.class})
 public class LLVMFeature implements InternalFeature {
 
     @Override

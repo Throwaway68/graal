@@ -189,6 +189,9 @@ public interface LLVMTargetSpecific {
             return "-unknown-darwin";
         } else if (Platform.includedIn(Platform.LINUX.class)) {
             return "-unknown-linux-gnu";
+        } else if (Platform.includedIn(Platform.WINDOWS.class)) {
+            /* msvc, not gnu: LLVM then emits __chkstk (MSVC CRT) instead of ___chkstk_ms. */
+            return "-pc-windows-msvc";
         } else {
             throw shouldNotReachHere("Unexpected target for LLVM backend: " + ImageSingletons.lookup(Platform.class).toString());
         }
