@@ -230,7 +230,7 @@ public class LLVMNativeImageCodeCache extends NativeImageCodeCache {
         ResolvedJavaType wordBase = getImageHeap().hMetaAccess.lookupJavaType(WordBase.class);
         JavaType[] parameters = stub.getSignature().toParameterTypes(stub.hasReceiver() ? stub.getDeclaringClass() : null);
         /* Entry point: libunwind reaches it from C, and only an entry point may be entered that way. */
-        boolean matches = stub.isEntryPoint() && parameters.length == 5 && stub.getSignature().getReturnType(null).getJavaKind() == JavaKind.Int;
+        boolean matches = stub.isEntryPoint() && parameters.length == 5 && stub.getSignature().getReturnType().getJavaKind() == JavaKind.Int;
         for (int i = 0; matches && i < parameters.length; i++) {
             ResolvedJavaType parameter = parameters[i].resolve(null);
             matches = (i < 2) ? parameter.getJavaKind() == JavaKind.Int : wordBase.isAssignableFrom(parameter);
