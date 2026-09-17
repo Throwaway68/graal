@@ -294,8 +294,13 @@ public class NativeImageGeneratorRunner {
                                 potentialNeedModule.getName().startsWith("com.oracle.graal.") ||
                                 /* exclude all truffle modules */
                                 potentialNeedModule.getName().startsWith("com.oracle.truffle.") ||
-                                /* llvm-backend optional dependencies */
-                                potentialNeedModule.getName().startsWith("com.oracle.svm.shadowed.")) {
+                                /*
+                                 * llvm-backend optional dependencies: upstream ships JavaCPP and
+                                 * the LLVM bindings relocated into com.oracle.svm.shadowed, this
+                                 * branch uses the stock org.bytedeco artifacts (see suite.py).
+                                 */
+                                potentialNeedModule.getName().startsWith("com.oracle.svm.shadowed.") ||
+                                potentialNeedModule.getName().startsWith("org.bytedeco.")) {
                     continue;
                 }
                 if (actualNeededModules.add(potentialNeedModule)) {
