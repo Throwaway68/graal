@@ -57,7 +57,6 @@ import com.oracle.svm.core.ReservedRegisters;
 import com.oracle.svm.core.SubstrateTarget;
 import com.oracle.svm.core.config.ObjectLayout;
 import com.oracle.svm.core.graal.code.SubstrateCallingConvention;
-import com.oracle.svm.core.graal.code.SubstrateCallingConventionKind;
 import com.oracle.svm.core.graal.code.SubstrateCallingConventionType;
 import com.oracle.svm.core.graal.code.SubstrateDataBuilder;
 import com.oracle.svm.core.graal.code.SubstrateLIRGenerator;
@@ -305,9 +304,7 @@ public class LLVMGenerator extends CoreProvidersDelegate implements LIRGenerator
         builder.setFunctionAttribute(Attribute.NoRedZone);
         builder.setFunctionAttribute(Attribute.NoRealignStack);
         builder.setGarbageCollector(GCStrategy.CompressedPointers);
-        if (!(LLVMWindowsSupport.isWindows() && usesNativeABI(method))) {
-            builder.setFunctionCallingConvention(LLVMCallingConvention.GraalCallingConvention);
-        }
+        builder.setFunctionCallingConvention(LLVMCallingConvention.GraalCallingConvention);
         if (LLVMWindowsSupport.isWindows()) {
             /*
              * Windows calls the personality named here as an SEH language handler, with a different
@@ -356,23 +353,6 @@ public class LLVMGenerator extends CoreProvidersDelegate implements LIRGenerator
 
     private static String getFunctionName(ResolvedJavaMethod method) {
         return ((HostedMethod) method).getUniqueShortName();
-    }
-
-    /**
-     * Whether a method is called with the platform ABI rather than the Graal calling convention -
-     * every entry point, and anything marked {@code @ExplicitCallingConvention(Native)}. Callers
-     * already agree: {@code NodeLLVMBuilder} passes {@code nativeABI} from the call target's
-     * {@link SubstrateCallingConventionType}, which is derived from the same kind.
-     * <p>
-     * It matters on Win64, where the two conventions differ: the Graal one passes arguments in the
-     * same registers but reserves no 32-byte home space, so a C caller and a Graal-convention callee
-     * with more than four arguments disagree about where the fifth one lives. Seen on
-     * {@code JNIFunctions.GetByteArrayRegion}, whose entry point stub read its buffer pointer from
-     * the return address' stack slot plus 8 instead of plus 40, and crashed as soon as
-     * {@code System.out.println} reached the JNI callback.
-     */
-    private static boolean usesNativeABI(ResolvedJavaMethod method) {
-        return ((HostedMethod) method).getCallingConventionKind() == SubstrateCallingConventionKind.Native;
     }
 
     private static boolean isEntryPoint(ResolvedJavaMethod method) {

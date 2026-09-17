@@ -229,7 +229,7 @@ public class LLVMNativeImageCodeCache extends NativeImageCodeCache {
     private void verifyPersonalityStub(HostedMethod stub) {
         ResolvedJavaType wordBase = getImageHeap().hMetaAccess.lookupJavaType(WordBase.class);
         JavaType[] parameters = stub.getSignature().toParameterTypes(stub.hasReceiver() ? stub.getDeclaringClass() : null);
-        /* Entry point: that is what puts it on the platform ABI, which is how libunwind calls it. */
+        /* Entry point: libunwind reaches it from C, and only an entry point may be entered that way. */
         boolean matches = stub.isEntryPoint() && parameters.length == 5 && stub.getSignature().getReturnType(null).getJavaKind() == JavaKind.Int;
         for (int i = 0; matches && i < parameters.length; i++) {
             ResolvedJavaType parameter = parameters[i].resolve(null);

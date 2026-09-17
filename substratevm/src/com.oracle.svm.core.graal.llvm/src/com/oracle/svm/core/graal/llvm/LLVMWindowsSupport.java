@@ -128,8 +128,10 @@ public final class LLVMWindowsSupport {
      * </pre>
      *
      * {@code _GCC_specific_handler} drives the Itanium two-phase protocol on top of SEH and calls
-     * the personality routine with the platform ABI. That is also the ABI of the Java stub: it is an
-     * entry point, and LLVMGenerator leaves entry points on the C calling convention on Windows.
+     * the personality routine with the platform ABI. The Java stub is compiled with the Graal
+     * calling convention, which on Win64 is the platform ABI with two registers reserved - it takes
+     * the LLVM fix in {@code X86Subtarget::isCallingConvWin64} (LLVM release 22.1.8-graal.3) for the
+     * two to agree on arguments beyond the fourth.
      */
     private static void addPersonalityShim(LLVMIRBuilder builder, String personalityStubName) {
         LLVMTypeRef intType = builder.intType();
