@@ -2198,9 +2198,13 @@ ce_llvm_backend = mx_sdk_vm.GraalVmSvmTool(
     stability="experimental-earlyadopter",
     jlink=False,
 )
-# GR-34811: upstream excludes windows and darwin-aarch64. This branch enables both:
-# darwin-aarch64 only needed moduleName entries in suite.py; windows is ported.
-llvm_supported = True
+# GR-34811: upstream excludes windows and darwin-aarch64. This branch enables windows, which is
+# what the LLVM backend sources in this suite are ported for. darwin-aarch64 stays excluded: its
+# shadowed platform jars carry the module descriptor only under META-INF/versions/9 while their
+# manifest lacks `Multi-Release: true`, so the descriptor is invisible and archiving SVM_LLVM dies
+# with "java --describe-module com.oracle.svm.shadowed.org.bytedeco.llvm.macosx.arm64 failed"
+# (gha-graal run 35238742378). Re-manifesting those two jars is all it would take.
+llvm_supported = not (mx.is_darwin() and mx.get_arch() == "aarch64")
 if llvm_supported:
     mx_sdk_vm.register_graalvm_component(ce_llvm_backend)
 
