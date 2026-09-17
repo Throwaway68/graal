@@ -31,7 +31,6 @@ import org.bytedeco.llvm.LLVM.LLVMValueRef;
 import org.graalvm.nativeimage.Platform;
 
 import com.oracle.svm.core.graal.llvm.util.LLVMIRBuilder;
-import com.oracle.svm.core.graal.llvm.util.LLVMIRBuilder.LLVMCallingConvention;
 import com.oracle.svm.core.graal.llvm.util.LLVMIRBuilder.LinkageType;
 import com.oracle.svm.core.graal.llvm.util.LLVMTargetSpecific;
 import com.oracle.svm.hosted.image.LLVMToolchain;
@@ -55,7 +54,7 @@ public final class LLVMWindowsSupport {
     public static final String CODE_SECTION = ".text$svm1";
     public static final String END_SECTION = ".text$svm2";
     /**
-     * Section of the SEH glue below. It sorts after {@link #END_SECTION}, so the glue lands right
+     * Section of the SEH shim below. It sorts after {@link #END_SECTION}, so the glue lands right
      * behind the Java code but outside {@code [__svm_code_section, __svm_text_end)} - it is never a
      * Java frame, nothing ever looks its address up in the code info, and keeping it out of
      * {@link #CODE_SECTION} means it can never shift a method offset there (LLVMObjectFileReader
@@ -66,8 +65,6 @@ public final class LLVMWindowsSupport {
 
     /** SEH language handler named by the {@code .xdata} record of every Java function. */
     public static final String SEH_PERSONALITY = "__svm_seh_personality";
-    /** C-ABI thunk in front of the Java personality, see {@link #addPersonalityShim}. */
-    private static final String SEH_PERSONALITY_ROUTINE = "__svm_seh_personality_routine";
     /** libunwind's bridge from an SEH language handler to an Itanium personality routine. */
     private static final String GCC_SPECIFIC_HANDLER = "_GCC_specific_handler";
     /** Target triple libunwind is built for; it is the one that predefines {@code __SEH__}. */
@@ -122,23 +119,17 @@ public final class LLVMWindowsSupport {
     }
 
     /**
-     * Emits the two functions that connect Windows exception dispatching to the Java personality:
+     * Emits the SEH language handler that every Java function names as its personality:
      *
      * <pre>
      * EXCEPTION_DISPOSITION __svm_seh_personality(rec, frame, context, dispatcher) {
-     *     return _GCC_specific_handler(rec, frame, context, dispatcher, __svm_seh_personality_routine);
-     * }
-     * int __svm_seh_personality_routine(version, action, thread, exception, unwindContext) {
-     *     return &lt;Java personality stub&gt;(version, action, thread, exception, unwindContext);
+     *     return _GCC_specific_handler(rec, frame, context, dispatcher, &lt;Java personality stub&gt;);
      * }
      * </pre>
      *
-     * The thunk exists because of the calling convention. Compiled Java methods, the personality
-     * stub included, use the Graal calling convention, which on Win64 passes the arguments in the
-     * same registers as the C one but reserves no 32-byte home space; libunwind calls the
-     * personality routine with the C convention, which does. The two therefore disagree about where
-     * the fifth argument lives, and only about that. The thunk is a C function, so it reads the
-     * arguments where libunwind puts them, and re-issues the call with the Graal convention.
+     * {@code _GCC_specific_handler} drives the Itanium two-phase protocol on top of SEH and calls
+     * the personality routine with the platform ABI. That is also the ABI of the Java stub: it is an
+     * entry point, and LLVMGenerator leaves entry points on the C calling convention on Windows.
      */
     private static void addPersonalityShim(LLVMIRBuilder builder, String personalityStubName) {
         LLVMTypeRef intType = builder.intType();
@@ -153,16 +144,6 @@ public final class LLVMWindowsSupport {
          */
         LLVMTypeRef personalityType = builder.functionType(intType, intType, intType, wordType, wordType, wordType);
         LLVMValueRef javaPersonality = builder.getFunction(personalityStubName, personalityType);
-        builder.setFunctionCallingConvention(javaPersonality, LLVMCallingConvention.GraalCallingConvention);
-
-        LLVMValueRef routine = builder.addFunction(SEH_PERSONALITY_ROUTINE, personalityType);
-        LLVMIRBuilder.setLinkage(routine, LinkageType.External);
-        LLVMIRBuilder.setSection(routine, SEH_SECTION);
-        builder.positionAtEnd(builder.appendBasicBlock(routine, "entry"));
-        LLVMValueRef reasonCode = builder.buildCall(javaPersonality, LLVMIRBuilder.getParam(routine, 0), LLVMIRBuilder.getParam(routine, 1),
-                        LLVMIRBuilder.getParam(routine, 2), LLVMIRBuilder.getParam(routine, 3), LLVMIRBuilder.getParam(routine, 4));
-        builder.setInstructionCallingConvention(reasonCode, LLVMCallingConvention.GraalCallingConvention);
-        builder.buildRet(reasonCode);
 
         /*
          * EXCEPTION_DISPOSITION _GCC_specific_handler(EXCEPTION_RECORD *, void *frame, CONTEXT *,
@@ -177,7 +158,7 @@ public final class LLVMWindowsSupport {
         LLVMIRBuilder.setSection(shim, SEH_SECTION);
         builder.positionAtEnd(builder.appendBasicBlock(shim, "entry"));
         LLVMValueRef disposition = builder.buildCall(gccSpecificHandler, LLVMIRBuilder.getParam(shim, 0), LLVMIRBuilder.getParam(shim, 1),
-                        LLVMIRBuilder.getParam(shim, 2), LLVMIRBuilder.getParam(shim, 3), routine);
+                        LLVMIRBuilder.getParam(shim, 2), LLVMIRBuilder.getParam(shim, 3), javaPersonality);
         builder.buildRet(disposition);
     }
 }
