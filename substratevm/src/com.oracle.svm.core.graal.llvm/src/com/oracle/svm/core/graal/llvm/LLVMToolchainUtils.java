@@ -26,6 +26,8 @@ package com.oracle.svm.core.graal.llvm;
 
 import static com.oracle.svm.core.graal.llvm.objectfile.LLVMObjectFile.getLld;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -109,7 +111,15 @@ public class LLVMToolchainUtils {
         List<String> args = new ArrayList<>();
         args.add("-o");
         args.add(outputPath);
-        args.addAll(inputPaths);
+        if (LLVMWindowsSupport.isWindows()) {
+            /*
+             * A single batch means one input per method, which overruns the 32k command line limit
+             * of CreateProcess. LLVM tools expand @-response files before parsing their arguments.
+             */
+            args.add("@" + writeResponseFile(basePath, outputPath, inputPaths));
+        } else {
+            args.addAll(inputPaths);
+        }
 
         try {
             LLVMToolchain.runLLVMCommand("llvm-link", basePath, args);
@@ -117,6 +127,16 @@ public class LLVMToolchainUtils {
             debug.log("%s", e.getOutput());
             throw new GraalError("LLVM linking failed into " + outputPathFormat.apply(outputPath) + ": " + e.getStatus() + toolOutput(e));
         }
+    }
+
+    private static String writeResponseFile(Path basePath, String outputPath, List<String> inputPaths) {
+        String name = outputPath + ".rsp";
+        try {
+            Files.write(basePath.resolve(name), inputPaths);
+        } catch (IOException e) {
+            throw new GraalError(e);
+        }
+        return name;
     }
 
     public static void nativeLink(DebugContext debug, String outputPath, List<String> inputPaths, Path basePath, Function<String, String> outputPathFormat) {
