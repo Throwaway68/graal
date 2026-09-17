@@ -305,7 +305,16 @@ public class LLVMGenerator extends CoreProvidersDelegate implements LIRGenerator
         builder.setFunctionAttribute(Attribute.NoRealignStack);
         builder.setGarbageCollector(GCStrategy.CompressedPointers);
         builder.setFunctionCallingConvention(LLVMCallingConvention.GraalCallingConvention);
-        builder.setPersonalityFunction(getFunction(LLVMExceptionUnwind.getPersonalityStub(getMetaAccess()), true));
+        if (LLVMWindowsSupport.isWindows()) {
+            /*
+             * Windows calls the personality named here as an SEH language handler, with a different
+             * signature and protocol than the Itanium personality the Java stub implements. The
+             * shim in the support module bridges the two through libunwind.
+             */
+            builder.setPersonalityFunction(builder.getFunction(LLVMWindowsSupport.SEH_PERSONALITY, LLVMWindowsSupport.sehPersonalityType(builder)));
+        } else {
+            builder.setPersonalityFunction(getFunction(LLVMExceptionUnwind.getPersonalityStub(getMetaAccess()), true));
+        }
 
         if (isEntryPoint) {
             builder.addAlias(SubstrateUtil.mangleName(functionName));

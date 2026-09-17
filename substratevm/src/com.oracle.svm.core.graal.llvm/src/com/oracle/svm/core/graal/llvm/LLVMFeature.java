@@ -24,7 +24,10 @@
  */
 package com.oracle.svm.core.graal.llvm;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.Map;
 
 import org.graalvm.nativeimage.ImageSingletons;
@@ -135,6 +138,48 @@ public class LLVMFeature implements InternalFeature {
     public void beforeAnalysis(BeforeAnalysisAccess access) {
         FeatureImpl.BeforeAnalysisAccessImpl accessImpl = (FeatureImpl.BeforeAnalysisAccessImpl) access;
         accessImpl.registerAsRoot((AnalysisMethod) LLVMExceptionUnwind.getRetrieveExceptionMethod(accessImpl.getMetaAccess()), true, "LLVM exception unwind, registered in " + LLVMFeature.class);
+    }
+
+    /**
+     * On Windows the Java code calls libunwind directly ({@code _Unwind_RaiseException} and the
+     * accessors used by the personality) and the SEH shim of the support module calls
+     * {@code _GCC_specific_handler}, so the image has to link the libunwind that the LLVM toolchain
+     * bundle ships. Nothing else in the build knows about that archive.
+     */
+    @Override
+    public void beforeImageWrite(BeforeImageWriteAccess access) {
+        if (!LLVMWindowsSupport.isWindows()) {
+            return;
+        }
+        Path archive = LLVMWindowsSupport.libunwindArchive();
+        if (!Files.isRegularFile(archive)) {
+            throw UserError.abort("The LLVM toolchain in %s does not contain libunwind (SEH mode), which the LLVM backend needs on Windows: %s",
+                            LLVMToolchain.getLLVMBinDir().getParent(), archive);
+        }
+        ((FeatureImpl.BeforeImageWriteAccessImpl) access).registerLinkerInvocationTransformer(linkerInvocation -> {
+            /*
+             * cl.exe forwards inputs it does not recognize as objects to the linker as they are, so
+             * the archive goes in under a .lib name. Copying it into the temp directory also keeps
+             * the host path out of the linker command line.
+             */
+            Path library = linkerInvocation.getTempDirectory().resolve("unwind.lib");
+            try {
+                Files.copy(archive, library, StandardCopyOption.REPLACE_EXISTING);
+            } catch (IOException e) {
+                throw UserError.abort(e, "Cannot copy %s to %s", archive, library);
+            }
+            linkerInvocation.addInputFile(library);
+            /* RtlUnwindEx and the other unwinding entry points libunwind's SEH mode imports. */
+            linkerInvocation.addNativeLinkerOption("kernel32.lib");
+            linkerInvocation.addNativeLinkerOption("ntdll.lib");
+            /*
+             * libunwind is compiled against mingw's headers and calls fprintf and fflush out of
+             * line; the UCRT headers define the printf family inline, so ucrt.lib does not export
+             * it.
+             */
+            linkerInvocation.addNativeLinkerOption("legacy_stdio_definitions.lib");
+            return linkerInvocation;
+        });
     }
 
     @Override

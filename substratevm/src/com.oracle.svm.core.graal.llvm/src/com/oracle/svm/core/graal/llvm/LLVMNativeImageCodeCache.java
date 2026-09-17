@@ -51,6 +51,7 @@ import java.util.stream.IntStream;
 import org.graalvm.collections.Pair;
 import org.graalvm.nativeimage.Platform;
 import org.graalvm.nativeimage.Platforms;
+import org.graalvm.word.WordBase;
 
 import com.oracle.graal.pointsto.BigBang;
 import com.oracle.graal.pointsto.util.Timer.StopTimer;
@@ -64,6 +65,7 @@ import com.oracle.svm.core.graal.code.CGlobalDataDirectReference;
 import com.oracle.svm.core.graal.code.CGlobalDataInfo;
 import com.oracle.svm.core.graal.llvm.LLVMToolchainUtils.BatchExecutor;
 import com.oracle.svm.core.graal.llvm.objectfile.LLVMObjectFile;
+import com.oracle.svm.core.graal.llvm.runtime.LLVMExceptionUnwind;
 import com.oracle.svm.core.graal.llvm.util.LLVMObjectFileReader;
 import com.oracle.svm.core.graal.llvm.util.LLVMObjectFileReader.LLVMTextSectionInfo;
 import com.oracle.svm.core.graal.llvm.util.LLVMOptions;
@@ -88,6 +90,9 @@ import jdk.graal.compiler.debug.Indent;
 import jdk.vm.ci.code.site.Call;
 import jdk.vm.ci.code.site.DataPatch;
 import jdk.vm.ci.code.site.DataSectionReference;
+import jdk.vm.ci.meta.JavaKind;
+import jdk.vm.ci.meta.JavaType;
+import jdk.vm.ci.meta.ResolvedJavaType;
 
 @Platforms(Platform.HOSTED_ONLY.class)
 public class LLVMNativeImageCodeCache extends NativeImageCodeCache {
@@ -198,17 +203,38 @@ public class LLVMNativeImageCodeCache extends NativeImageCodeCache {
 
     /**
      * Writes the bitcode of the Windows support module, which defines the code section boundary
-     * symbols, and returns its file name so that it can be linked into the single batch.
+     * symbols and the SEH personality glue, and returns its file name so that it can be linked into
+     * the single batch.
      */
     private String writeSupportModule() {
         String name = "win-support.bc";
-        byte[] bitcode = LLVMWindowsSupport.buildSupportModule(NativeImage.getTextSectionStartSymbol(), NativeImage.getTextSectionEndSymbol());
+        HostedMethod personalityStub = (HostedMethod) LLVMExceptionUnwind.getPersonalityStub(getImageHeap().hMetaAccess);
+        verifyPersonalityStub(personalityStub);
+        byte[] bitcode = LLVMWindowsSupport.buildSupportModule(NativeImage.getTextSectionStartSymbol(), NativeImage.getTextSectionEndSymbol(), personalityStub.getUniqueShortName());
         try (FileOutputStream fos = new FileOutputStream(basePath.resolve(name).toString())) {
             fos.write(bitcode);
         } catch (IOException e) {
             throw new GraalError(e);
         }
         return name;
+    }
+
+    /**
+     * The support module declares the personality stub by hand, as
+     * {@code i32 (i32, i32, i64, i64, i64)} with the Graal calling convention, because it is built
+     * without an {@code LLVMGenerator}. A change to the signature of
+     * {@code LLVMExceptionUnwind.personality} must therefore fail the build rather than silently
+     * produce a call with the wrong ABI.
+     */
+    private void verifyPersonalityStub(HostedMethod stub) {
+        ResolvedJavaType wordBase = getImageHeap().hMetaAccess.lookupJavaType(WordBase.class);
+        JavaType[] parameters = stub.getSignature().toParameterTypes(stub.hasReceiver() ? stub.getDeclaringClass() : null);
+        boolean matches = parameters.length == 5 && stub.getSignature().getReturnType(null).getJavaKind() == JavaKind.Int;
+        for (int i = 0; matches && i < parameters.length; i++) {
+            ResolvedJavaType parameter = parameters[i].resolve(null);
+            matches = (i < 2) ? parameter.getJavaKind() == JavaKind.Int : wordBase.isAssignableFrom(parameter);
+        }
+        VMError.guarantee(matches, "The Windows support module declares %s as i32 (i32, i32, i64, i64, i64), which does not match its signature %s", stub, stub.getSignature());
     }
 
     private void compileBitcodeBatches(BatchExecutor executor, DebugContext debug, int numBatches) {
