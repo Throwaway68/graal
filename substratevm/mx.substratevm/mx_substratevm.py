@@ -176,6 +176,11 @@ def is_musl_supported():
 
 def build_native_image_agent(native_image):
     agentfile = mx_subst.path_substitutions.substitute('<lib:native-image-agent>')
+    # native-image refuses to write into a directory that does not exist, and svmbuild is only
+    # created as a side effect of other gate tasks (`helloworld` passes it as --output-path). A gate
+    # run whose tags do not include one of those - `mx gate --tags build,condconfig` - would abort
+    # here with "Writing image to non-existent directory ... is not allowed".
+    mx_util.ensure_dir_exists(svmbuild_dir())
     agentname = join(svmbuild_dir(), agentfile.rsplit('.', 1)[0])  # remove platform-specific file extension
     native_image(['--macro:native-image-agent-library', '-o', agentname])
     return svmbuild_dir() + '/' + agentfile
