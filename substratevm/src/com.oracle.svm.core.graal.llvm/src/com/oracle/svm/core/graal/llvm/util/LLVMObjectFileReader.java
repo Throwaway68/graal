@@ -282,16 +282,26 @@ public class LLVMObjectFileReader {
         private final long codeSize;
         private final Map<Integer, String> offsetToSymbol = new TreeMap<>();
         private final Map<String, Integer> symbolToOffset = new HashMap<>();
+        private final Map<String, Integer> allSymbolToOffset = new HashMap<>();
 
         private LLVMTextSectionInfo(LLVMSectionInfo<Long, SymbolOffset> sectionInfo) {
             this.codeSize = sectionInfo.sectionInfo;
             for (SymbolOffset symbolOffset : sectionInfo.symbolInfo) {
                 int offset = symbolOffset.offset;
+                allSymbolToOffset.put(symbolOffset.symbol, offset);
                 if (offset >= 0 && offset < codeSize && LLVMTargetSpecific.get().isSymbolValid(symbolOffset.symbol)) {
                     offsetToSymbol.put(symbolOffset.offset, symbolOffset.symbol);
                     symbolToOffset.put(symbolOffset.symbol, symbolOffset.offset);
                 }
             }
+        }
+
+        /**
+         * Offset of a symbol as the object file spells it, without the filtering the method lookup
+         * does: a marker at the very end of the section is a valid answer here.
+         */
+        public Integer getSymbolOffset(String symbol) {
+            return allSymbolToOffset.get(symbol);
         }
 
         public long getCodeSize() {

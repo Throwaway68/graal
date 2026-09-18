@@ -221,6 +221,40 @@ public class LLVMNativeImageCodeCache extends NativeImageCodeCache {
     }
 
     /**
+     * Compiles a Mach-O marker object defining {@code symbol} at the current end of
+     * {@code __TEXT,__text} and returns its file name, to be linked in front of or behind the
+     * batches.
+     */
+    private String writeMarkerObject(DebugContext debug, String name, String symbol) {
+        String bitcode = name + ".bc";
+        String object = name + ".o";
+        try (FileOutputStream fos = new FileOutputStream(basePath.resolve(bitcode).toString())) {
+            fos.write(LLVMDarwinSupport.buildMarkerModule(name, symbol));
+        } catch (IOException e) {
+            throw new GraalError(e);
+        }
+        /* Not getFunctionName: that one reads a batch id out of the file name. */
+        llvmCompile(debug, object, bitcode, basePath, fileName -> fileName);
+        return object;
+    }
+
+    /**
+     * The marker objects only bracket the Java code if the relocatable link concatenates the
+     * {@code __TEXT,__text} of its inputs in input order. It does, but nothing in the object format
+     * says it has to, and getting it wrong would shift every method offset in the image rather than
+     * fail the build, so the linked object is checked.
+     */
+    private static void verifyMarkers(LLVMTextSectionInfo textSectionInfo) {
+        String start = LLVMDarwinSupport.machOSymbol(NativeImage.getTextSectionStartSymbol());
+        String end = LLVMDarwinSupport.machOSymbol(NativeImage.getTextSectionEndSymbol());
+        Integer startOffset = textSectionInfo.getSymbolOffset(start);
+        Integer endOffset = textSectionInfo.getSymbolOffset(end);
+        VMError.guarantee(startOffset != null && startOffset == 0, "%s is at %s of the code section, not at its start", start, startOffset);
+        VMError.guarantee(endOffset != null && endOffset == textSectionInfo.getCodeSize(), "%s is at %s of the %s byte code section, not at its end", end, endOffset,
+                        textSectionInfo.getCodeSize());
+    }
+
+    /**
      * The support module declares the personality stub by hand, as
      * {@code i32 (i32, i32, i64, i64, i64)} with the Graal calling convention, because it is built
      * without an {@code LLVMGenerator}. A change to the signature of
@@ -263,11 +297,26 @@ public class LLVMNativeImageCodeCache extends NativeImageCodeCache {
                 throw new GraalError(e);
             }
         } else {
-            List<String> compiledBatches = IntStream.range(0, numBatches).mapToObj(this::getBatchCompiledFilename).collect(Collectors.toList());
-            nativeLink(debug, getLinkedFilename(), compiledBatches, basePath, this::getFunctionName);
+            List<String> inputs = new ArrayList<>();
+            /*
+             * On Mach-O the code section boundary symbols cannot be added to the linked object
+             * afterwards (llvm-objcopy --add-symbol is ELF only), so they come from two marker
+             * objects that bracket the batches in the input order of the relocatable link.
+             */
+            if (LLVMDarwinSupport.isDarwin()) {
+                inputs.add(writeMarkerObject(debug, "svm-code-section-start", NativeImage.getTextSectionStartSymbol()));
+            }
+            IntStream.range(0, numBatches).mapToObj(this::getBatchCompiledFilename).forEach(inputs::add);
+            if (LLVMDarwinSupport.isDarwin()) {
+                inputs.add(writeMarkerObject(debug, "svm-code-section-end", NativeImage.getTextSectionEndSymbol()));
+            }
+            nativeLink(debug, getLinkedFilename(), inputs, basePath, this::getFunctionName);
         }
 
         LLVMTextSectionInfo textSectionInfo = objectFileReader.parseCode(getLinkedPath());
+        if (LLVMDarwinSupport.isDarwin()) {
+            verifyMarkers(textSectionInfo);
+        }
 
         List<Pair<HostedMethod, CompilationResult>> orderedCompilations = getOrderedCompilations();
         executor.forEach(orderedCompilations, pair -> _ -> {
@@ -296,8 +345,8 @@ public class LLVMNativeImageCodeCache extends NativeImageCodeCache {
         long codeAreaSize = textSectionInfo.getCodeSize();
         assert codeAreaSize <= Integer.MAX_VALUE;
         llvmCleanupRISCVAttributes(debug, getLinkedFilename(), basePath);
-        if (!LLVMWindowsSupport.isWindows()) {
-            /* On Windows the symbols come from the marker sections of the support module. */
+        if (!LLVMWindowsSupport.isWindows() && !LLVMDarwinSupport.isDarwin()) {
+            /* Elsewhere the symbols come from marker sections (Windows) or marker objects (Darwin). */
             llvmAddTextSectionSymbols(debug, getLinkedFilename(), NativeImage.getTextSectionStartSymbol(), NativeImage.getTextSectionEndSymbol(), codeAreaSize, basePath);
         }
         setCodeAreaSize((int) textSectionInfo.getCodeSize());
