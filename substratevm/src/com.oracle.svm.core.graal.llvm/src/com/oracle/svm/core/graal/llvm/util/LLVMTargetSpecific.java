@@ -464,6 +464,17 @@ class LLVMAArch64TargetSpecificFeature implements InternalFeature {
             List<String> list = new ArrayList<>();
             list.add("--frame-pointer=all");
             list.add("--aarch64-frame-record-on-top");
+            /*
+             * The heap base (x27) and thread (x28) registers are read and written with
+             * llvm.read_register / llvm.write_register. On AArch64, llc accepts those intrinsics for
+             * x1-x28 only if the register is reserved: by the GRAAL calling convention, which this
+             * backend does not use on AArch64 (LLVMCallingConvention.value() maps it to the C
+             * convention), or by the +reserve-xN subtarget features. Without them every batch fails
+             * with `invalid register "x28" for llvm.read_register`. Reserving them here also keeps
+             * the register allocator away from them in every function, which is what SubstrateVM
+             * needs anyway.
+             */
+            list.add("-mattr=+reserve-x27,+reserve-x28");
             if (Platform.includedIn(Platform.IOS.class)) {
                 list.add("-mtriple=arm64-ios");
             }
