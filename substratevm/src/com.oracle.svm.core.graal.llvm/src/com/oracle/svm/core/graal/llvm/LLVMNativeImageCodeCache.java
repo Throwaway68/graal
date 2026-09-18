@@ -423,6 +423,17 @@ public class LLVMNativeImageCodeCache extends NativeImageCodeCache {
     public void patchMethods(DebugContext debug, RelocatableBuffer relocs, ObjectFile objectFile) {
         Element rodataSection = objectFile.elementForName(SectionName.RODATA.getFormatDependentName(objectFile.getFormat()));
         Element dataSection = objectFile.elementForName(SectionName.DATA.getFormatDependentName(objectFile.getFormat()));
+        /*
+         * The symbols defined below exist so that the separate code object can reference the
+         * image's data by name; they need external linkage, and nothing more. On PE/COFF
+         * `exported` additionally writes a `/EXPORT:<name>` directive into the object's .drectve
+         * section, i.e. it puts the symbol into the executable's export table, and link.exe
+         * refuses more than 65535 of those with "LNK1189: library limit of 65535 objects
+         * exceeded". A hello world stays under that limit, the gate's javac-image does not: it
+         * defines 79,723 of these symbols. ELF and Mach-O keep the value upstream passes, where
+         * `exported` only decides dynamic symbol table membership.
+         */
+        boolean exported = objectFile.getFormat() != ObjectFile.Format.PECOFF;
         for (Pair<HostedMethod, CompilationResult> pair : getOrderedCompilations()) {
             CompilationResult result = pair.getRight();
             for (DataPatch dataPatch : result.getDataPatches()) {
@@ -435,7 +446,7 @@ public class LLVMNativeImageCodeCache extends NativeImageCodeCache {
 
                     String symbolName = (String) dataPatch.note;
                     if (data.symbolName == null && objectFile.getOrCreateSymbolTable().getSymbol(symbolName) == null) {
-                        objectFile.createDefinedSymbol(symbolName, dataSection, info.getOffset() + RWDATA_CGLOBALS_PARTITION_OFFSET, 0, false, true, true);
+                        objectFile.createDefinedSymbol(symbolName, dataSection, info.getOffset() + RWDATA_CGLOBALS_PARTITION_OFFSET, 0, false, true, exported);
                     }
                 } else if (dataPatch.reference instanceof DataSectionReference) {
                     DataSectionReference reference = (DataSectionReference) dataPatch.reference;
@@ -444,7 +455,7 @@ public class LLVMNativeImageCodeCache extends NativeImageCodeCache {
 
                     String symbolName = (String) dataPatch.note;
                     if (objectFile.getOrCreateSymbolTable().getSymbol(symbolName) == null) {
-                        objectFile.createDefinedSymbol(symbolName, rodataSection, offset, 0, false, true, true);
+                        objectFile.createDefinedSymbol(symbolName, rodataSection, offset, 0, false, true, exported);
                     }
                 }
             }
