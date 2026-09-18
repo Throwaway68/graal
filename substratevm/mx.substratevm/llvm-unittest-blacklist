@@ -30,3 +30,18 @@ com.oracle.svm.test.jfr.TestJavaLevelVirtualThreadEvents
 com.oracle.svm.test.jfr.TestMirrorEvents
 com.oracle.svm.test.jfr.TestVirtualThreadsUnreferencedStreaming
 com.oracle.svm.test.jfr.oldobject.TestOldObjectVirtualThreadSampleEvent
+
+# `-H:+RuntimeClassLoading` compiles the Ristretto interpreter into the image, and its bytecode
+# handler stubs (`Interpreter$Root.__stub_*Handler`) use Graal's multi-value return:
+# ReturnNode.generate -> LIRGeneratorTool.emitMultiReturns -> LLVMGenerator.getResult ->
+# "GraalError: unimplemented: the LLVM backend doesn't produce an LIRGenerationResult".
+# This is the same wall that stops the fourth `hellomodule` variant on every platform (journal,
+# 2026-09-18, task 1) and it is a backend feature gap, not a Windows problem: measured on
+# linux-amd64 run 35371140266 and windows-amd64 run 35371112347, both dying in the junit image of
+# GetPackageRuntimeClassLoadingTest with 400 such compilation failures. The other three classes
+# below carry the same `-H:+RuntimeClassLoading` in their @NativeImageBuildArgs and so build the
+# same interpreter into their images.
+com.oracle.svm.test.GetPackageRuntimeClassLoadingTest
+com.oracle.svm.test.RuntimeURLProtocolDisableTest
+com.oracle.svm.test.xml.RuntimeClassLoadingXmlApiReachabilityTest
+com.oracle.svm.test.xml.RuntimeClassLoadingXmlImplementationReachabilityTest
