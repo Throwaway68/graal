@@ -421,12 +421,33 @@ native_image_context.hosted_assertions = ['-J-ea', '-J-esa']
 # tests as well. Keep them limited to generic test support; do not register product-specific global
 # state or ImageSingleton markers here (for example anything that makes `svmjunit` look like a
 # `libjvm` image).
-_native_unittest_features = '--features=' + ','.join(('com.oracle.svm.test.ImageInfoTest$TestFeature',
-                                                      'com.oracle.svm.test.services.ServiceLoaderTest$TestFeature',
-                                                      'com.oracle.svm.test.services.SecurityServiceTest$TestFeature',
-                                                      'com.oracle.svm.test.ReflectionRegistrationTest$TestFeature',
-                                                      'com.oracle.svm.test.foreign.ForeignTests$TestFeature',
-                                                      'com.oracle.svm.test.BootstrapMethodTest$TestFeature'))
+_NATIVE_UNITTEST_FEATURES = ('com.oracle.svm.test.ImageInfoTest$TestFeature',
+                             'com.oracle.svm.test.services.ServiceLoaderTest$TestFeature',
+                             'com.oracle.svm.test.services.SecurityServiceTest$TestFeature',
+                             'com.oracle.svm.test.ReflectionRegistrationTest$TestFeature',
+                             'com.oracle.svm.test.foreign.ForeignTests$TestFeature',
+                             'com.oracle.svm.test.BootstrapMethodTest$TestFeature')
+
+# Features from the list above that cannot be registered when the image is built by the LLVM
+# backend, each with the reason. They are dropped only for such an image; every other build keeps
+# the full list, so nothing changes when `--tool:llvm-backend` is not in the build arguments.
+_LLVM_BACKEND_UNSUPPORTED_UNITTEST_FEATURES = {
+    # SubstrateOptions.isForeignAPIEnabled() is `!useLLVMBackend()` and
+    # ConcealedOptions.validateForeignAPISupport rejects an explicit -H:+ForeignAPISupport with the
+    # backend, so ForeignFunctionsFeature is not in the configuration, ImageSingletons has no
+    # RuntimeForeignAccessSupport, and this feature's duringSetup() aborts the whole junit image.
+    'com.oracle.svm.test.foreign.ForeignTests$TestFeature',
+}
+
+# Test classes the LLVM backend cannot run, one fnmatch pattern per line with a `#` comment naming
+# the reason. Used only when the image is built by the backend and the caller passed no
+# --blacklist of its own; an upstream checkout has no such file and is unaffected.
+_llvm_unittest_blacklist_file = join(suite.mxDir, 'llvm-unittest-blacklist')
+
+
+def _llvm_backend_selected(build_args):
+    """Whether these image builder arguments select the Native Image LLVM backend."""
+    return any('--tool:llvm-backend' in arg for arg in (build_args or []))
 
 IMAGE_ASSERTION_FLAGS = svm_experimental_options(['-H:+VerifyGraalGraphs', '-H:+VerifyPhases'])
 RUNTIME_CLASSLOADERS_INIT_ARG = '--initialize-at-run-time=jdk.internal.loader.ClassLoaders'
@@ -861,7 +882,9 @@ def _compute_native_unittest_args(extra_build_args=None, include_svm_test_featur
     # Truffle unit tests (and other suites) do not have com.oracle.svm.test on the classpath,
     # so adding these features would fail with "Feature class not found".
     if include_svm_test_features:
-        return ['--build-args', _native_unittest_features] + additional_build_args
+        features = [f for f in _NATIVE_UNITTEST_FEATURES if not (
+            _llvm_backend_selected(extra_build_args) and f in _LLVM_BACKEND_UNSUPPORTED_UNITTEST_FEATURES)]
+        return ['--build-args', '--features=' + ','.join(features)] + additional_build_args
     else:
         return ['--build-args'] + additional_build_args
 
@@ -1330,6 +1353,9 @@ def _native_unittest(native_image, cmdline_args, custom_batch=None):
 
     blacklist = unmask([pargs.blacklist])[0] if pargs.blacklist else None
     whitelist = unmask([pargs.whitelist])[0] if pargs.whitelist else None
+    if blacklist is None and _llvm_backend_selected(unmask(pargs.build_args)) and exists(_llvm_unittest_blacklist_file):
+        blacklist = _llvm_unittest_blacklist_file
+        mx.log('Excluding the test classes listed in ' + blacklist + ': this image is built by the LLVM backend.')
     test_classes_per_run = pargs.test_classes_per_run[0] if pargs.test_classes_per_run else None
 
     if whitelist:

@@ -1,0 +1,13 @@
+# Test classes that cannot run in an image built by the Native Image LLVM backend.
+# One fnmatch pattern per line; `#` starts a comment. `_native_unittest` passes this file to
+# `--blacklist` only when the build arguments contain `--tool:llvm-backend` and the caller did not
+# pass a --blacklist of its own, so a build without the backend runs exactly the same tests as
+# before. Every entry names the reason; an entry without one does not belong here.
+#
+# The Foreign Function and Memory API is switched off with the LLVM backend by upstream policy:
+# SubstrateOptions.isForeignAPIEnabled() returns !useLLVMBackend(), and
+# SubstrateOptions.ConcealedOptions.validateForeignAPISupport refuses an explicit
+# -H:+ForeignAPISupport with "Support for the Foreign Function and Memory API is not available with
+# the LLVM backend". Without ForeignFunctionsFeature these tests cannot even link a MethodHandle to
+# a downcall stub. Not a Windows issue: linux-amd64 behaves the same.
+com.oracle.svm.test.foreign.*
