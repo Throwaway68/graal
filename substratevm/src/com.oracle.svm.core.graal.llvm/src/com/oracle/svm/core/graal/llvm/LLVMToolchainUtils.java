@@ -167,7 +167,7 @@ public class LLVMToolchainUtils {
 
     public static void llvmCleanupStackMaps(DebugContext debug, String inputPath, Path basePath) {
         List<String> args = new ArrayList<>();
-        args.add("--remove-section=" + SectionName.LLVM_STACKMAPS.getFormatDependentName(ObjectFile.getNativeFormat()));
+        args.add("--remove-section=" + sectionToRemove(SectionName.LLVM_STACKMAPS));
         args.add(inputPath);
 
         try {
@@ -176,6 +176,18 @@ public class LLVMToolchainUtils {
             debug.log("%s", e.getOutput());
             throw new GraalError("Removing stack maps failed for " + inputPath + ": " + e.getStatus() + System.lineSeparator() + "Command: llvm-objcopy " + String.join(" ", args) + toolOutput(e));
         }
+    }
+
+    /**
+     * The name {@code llvm-objcopy --remove-section} matches a section by. On Mach-O that is the
+     * canonical {@code SEGMENT,SECTION} name; the section name alone matches nothing, and objcopy
+     * says so with an exit status of 0 and no output - it removes nothing and the 5 MB of stack
+     * maps of a hello world stay in the image.
+     */
+    private static String sectionToRemove(SectionName section) {
+        ObjectFile.Format format = ObjectFile.getNativeFormat();
+        String name = section.getFormatDependentName(format);
+        return format == ObjectFile.Format.MACH_O ? section.getSegmentName(format) + "," + name : name;
     }
 
     public static void llvmCleanupRISCVAttributes(DebugContext debug, String inputPath, Path basePath) {
