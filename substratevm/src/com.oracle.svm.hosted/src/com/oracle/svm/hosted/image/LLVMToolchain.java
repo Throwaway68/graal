@@ -60,6 +60,7 @@ public class LLVMToolchain {
         String output;
 
         Process llvmProcess = null;
+        Heartbeat heartbeat = null;
         try {
             ProcessBuilder llvmCommand = FileUtils.prepareCommand(cmd, directory);
             llvmCommand.redirectErrorStream(true);
@@ -67,17 +68,17 @@ public class LLVMToolchain {
             FileUtils.traceCommand(llvmCommand);
 
             llvmProcess = llvmCommand.start();
+            heartbeat = new Heartbeat(llvmProcess);
 
-            try (Heartbeat heartbeat = new Heartbeat(llvmProcess);
-                            InputStream inputStream = llvmProcess.getInputStream()) {
+            try (InputStream inputStream = llvmProcess.getInputStream()) {
                 List<String> lines = FileUtils.readAllLines(inputStream);
 
                 FileUtils.traceCommandOutput(lines);
 
                 output = String.join(System.lineSeparator(), lines);
-
-                status = llvmProcess.waitFor();
             }
+
+            status = llvmProcess.waitFor();
         } catch (IOException e) {
             status = -1;
             output = e.getMessage();
@@ -85,6 +86,9 @@ public class LLVMToolchain {
             String commandLine = SubstrateUtil.getShellCommandString(cmd, false);
             throw new InterruptImageBuilding("Interrupted during llvm command execution: " + commandLine);
         } finally {
+            if (heartbeat != null) {
+                heartbeat.close();
+            }
             if (llvmProcess != null) {
                 llvmProcess.destroy();
             }
@@ -127,7 +131,7 @@ public class LLVMToolchain {
      * The heartbeat reports activity only for as long as the process is actually alive, so a real
      * deadlock inside the builder - with no LLVM tool running - is still detected as before.
      */
-    private static final class Heartbeat implements AutoCloseable {
+    private static final class Heartbeat {
         private static final long INTERVAL_MS = TimeUnit.MINUTES.toMillis(1);
 
         private final Thread thread;
@@ -152,8 +156,7 @@ public class LLVMToolchain {
             thread.start();
         }
 
-        @Override
-        public void close() {
+        void close() {
             stopped = true;
             thread.interrupt();
         }
