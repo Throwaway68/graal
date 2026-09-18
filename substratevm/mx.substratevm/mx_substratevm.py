@@ -434,8 +434,9 @@ _NATIVE_UNITTEST_FEATURES = ('com.oracle.svm.test.ImageInfoTest$TestFeature',
                              'com.oracle.svm.test.BootstrapMethodTest$TestFeature')
 
 # Features from the list above that cannot be registered when the image is built by the LLVM
-# backend, each with the reason. They are dropped only for such an image; every other build keeps
-# the full list, so nothing changes when `--tool:llvm-backend` is not in the build arguments.
+# backend, each with the reason. They are dropped from the `--features=` argument by
+# `_without_llvm_unsupported_features`, which every native-unittest path goes through; every other
+# build keeps the full list, so nothing changes when the backend is not selected.
 _LLVM_BACKEND_UNSUPPORTED_UNITTEST_FEATURES = {
     # SubstrateOptions.isForeignAPIEnabled() is `!useLLVMBackend()` and
     # ConcealedOptions.validateForeignAPISupport rejects an explicit -H:+ForeignAPISupport with the
@@ -451,8 +452,38 @@ _llvm_unittest_blacklist_file = join(suite.mxDir, 'llvm-unittest-blacklist')
 
 
 def _llvm_backend_selected(build_args):
-    """Whether these image builder arguments select the Native Image LLVM backend."""
-    return any('--tool:llvm-backend' in arg for arg in (build_args or []))
+    """
+    Whether these image builder arguments select the Native Image LLVM backend, in either spelling:
+    the `--tool:llvm-backend` macro that Oracle's `use_llvm` gate configuration passes, and the
+    `-H:CompilerBackend=llvm` option the macro sets, which a hand-written command may pass directly.
+    """
+    return any('--tool:llvm-backend' in arg or 'CompilerBackend=llvm' in arg for arg in (build_args or []))
+
+
+def _without_llvm_unsupported_features(build_args):
+    """
+    Drops `_LLVM_BACKEND_UNSUPPORTED_UNITTEST_FEATURES` from the `--features=` image builder
+    argument, and the argument itself if nothing is left.
+
+    This is applied to the *merged* build arguments in `_native_unittest`, which is the one place
+    every native-unittest path meets: the gate tasks compose the arguments themselves and know the
+    backend is on, but `mx native-unittest --build-args ... --tool:llvm-backend -- <class>` builds
+    its feature list before the user's arguments are merged in, so filtering any earlier would fix
+    the gate and leave the command line broken.
+    """
+    result = []
+    for arg in build_args:
+        if not arg.startswith('--features='):
+            result.append(arg)
+            continue
+        features = [f for f in arg[len('--features='):].split(',') if f]
+        kept = [f for f in features if f not in _LLVM_BACKEND_UNSUPPORTED_UNITTEST_FEATURES]
+        dropped = [f for f in features if f in _LLVM_BACKEND_UNSUPPORTED_UNITTEST_FEATURES]
+        if dropped:
+            mx.log('Not registering ' + ', '.join(dropped) + ': the LLVM backend does not support what it needs.')
+        if kept:
+            result.append('--features=' + ','.join(kept))
+    return result
 
 IMAGE_ASSERTION_FLAGS = svm_experimental_options(['-H:+VerifyGraalGraphs', '-H:+VerifyPhases'])
 RUNTIME_CLASSLOADERS_INIT_ARG = '--initialize-at-run-time=jdk.internal.loader.ClassLoaders'
@@ -887,9 +918,9 @@ def _compute_native_unittest_args(extra_build_args=None, include_svm_test_featur
     # Truffle unit tests (and other suites) do not have com.oracle.svm.test on the classpath,
     # so adding these features would fail with "Feature class not found".
     if include_svm_test_features:
-        features = [f for f in _NATIVE_UNITTEST_FEATURES if not (
-            _llvm_backend_selected(extra_build_args) and f in _LLVM_BACKEND_UNSUPPORTED_UNITTEST_FEATURES)]
-        return ['--build-args', '--features=' + ','.join(features)] + additional_build_args
+        # The full list; `_native_unittest` drops what the LLVM backend cannot register, after the
+        # caller's own build arguments have been merged in.
+        return ['--build-args', '--features=' + ','.join(_NATIVE_UNITTEST_FEATURES)] + additional_build_args
     else:
         return ['--build-args'] + additional_build_args
 
@@ -1356,9 +1387,14 @@ def _native_unittest(native_image, cmdline_args, custom_batch=None):
     if pargs.custom_only:
         pargs.all = True
 
+    build_args = unmask(pargs.build_args)
+    llvm_backend = _llvm_backend_selected(build_args)
+    if llvm_backend:
+        build_args = _without_llvm_unsupported_features(build_args)
+
     blacklist = unmask([pargs.blacklist])[0] if pargs.blacklist else None
     whitelist = unmask([pargs.whitelist])[0] if pargs.whitelist else None
-    if blacklist is None and _llvm_backend_selected(unmask(pargs.build_args)) and exists(_llvm_unittest_blacklist_file):
+    if blacklist is None and llvm_backend and exists(_llvm_unittest_blacklist_file):
         blacklist = _llvm_unittest_blacklist_file
         mx.log('Excluding the test classes listed in ' + blacklist + ': this image is built by the LLVM backend.')
     test_classes_per_run = pargs.test_classes_per_run[0] if pargs.test_classes_per_run else None
@@ -1384,7 +1420,7 @@ def _native_unittest(native_image, cmdline_args, custom_batch=None):
     _native_junit(
         native_image,
         unittest_args,
-        unmask(pargs.build_args),
+        build_args,
         unmask(pargs.run_args),
         blacklist,
         whitelist,
