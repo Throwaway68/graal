@@ -45,6 +45,7 @@ import com.oracle.svm.core.graal.llvm.LLVMNativeImageCodeCache.StackMapDumper;
 import com.oracle.svm.core.graal.llvm.LLVMWindowsSupport;
 import com.oracle.svm.core.heap.SubstrateReferenceMap;
 import com.oracle.svm.hosted.meta.HostedMethod;
+import com.oracle.svm.shared.util.VMError;
 import org.bytedeco.javacpp.BytePointer;
 import org.bytedeco.javacpp.Pointer;
 import org.bytedeco.llvm.LLVM.LLVMMemoryBufferRef;
@@ -138,15 +139,55 @@ public class LLVMObjectFileReader {
         }
     }
 
+    /*
+     * On Windows the Java code lives in its own grouped section and the name has to match exactly:
+     * COMDAT helper sections are named .text as well, and the code section markers are .text$svm0
+     * and .text$svm2. Neither of those is matched by .text$svm1.
+     */
+    private static String codeSectionName() {
+        return LLVMWindowsSupport.isWindows() ? LLVMWindowsSupport.CODE_SECTION : SectionName.TEXT.getFormatDependentName(ObjectFile.getNativeFormat());
+    }
+
     public LLVMTextSectionInfo parseCode(Path objectFile) {
-        /*
-         * On Windows the Java code lives in its own grouped section and the name has to match
-         * exactly: COMDAT helper sections are named .text as well, and the code section markers are
-         * .text$svm0 and .text$svm2. Neither of those is matched by .text$svm1.
-         */
-        String codeSectionName = LLVMWindowsSupport.isWindows() ? LLVMWindowsSupport.CODE_SECTION : SectionName.TEXT.getFormatDependentName(ObjectFile.getNativeFormat());
-        LLVMSectionInfo<Long, SymbolOffset> sectionInfo = readSection(objectFile, codeSectionName, this::parseTextSection, this::handleTextSymbol);
+        LLVMSectionInfo<Long, SymbolOffset> sectionInfo = readSection(objectFile, codeSectionName(), this::parseTextSection, this::handleTextSymbol);
         return new LLVMTextSectionInfo(sectionInfo);
+    }
+
+    /**
+     * Reads the machine code of a batch object back, which
+     * {@link LLVMWindowsSupport#returnAddressOffset} needs to tell a statepoint record's offset
+     * from the return address of the call it belongs to. Only Windows needs it.
+     */
+    public LLVMCodeSection parseCodeSection(Path objectFile) {
+        LLVMSectionInfo<byte[], SymbolOffset> sectionInfo = readSection(objectFile, codeSectionName(), LLVMObjectFileReader::readCodeSection, this::handleTextSymbol);
+        return new LLVMCodeSection(sectionInfo);
+    }
+
+    private static byte[] readCodeSection(LLVMSectionIteratorRef sectionIterator, @SuppressWarnings("unused") LLVMSectionIteratorRef relocationsSectionIterator) {
+        long size = LLVM.LLVMGetSectionSize(sectionIterator);
+        Pointer contents = LLVM.LLVMGetSectionContents(sectionIterator).limit(size);
+        byte[] code = new byte[NumUtil.safeToInt(size)];
+        contents.asByteBuffer().get(code);
+        return code;
+    }
+
+    /** Machine code of one batch object, with the offset of every function it defines. */
+    public static final class LLVMCodeSection {
+        private final byte[] code;
+        private final Map<String, Integer> symbolToOffset = new HashMap<>();
+
+        private LLVMCodeSection(LLVMSectionInfo<byte[], SymbolOffset> sectionInfo) {
+            this.code = sectionInfo.sectionInfo;
+            for (SymbolOffset symbolOffset : sectionInfo.symbolInfo) {
+                symbolToOffset.put(symbolOffset.symbol, symbolOffset.offset);
+            }
+        }
+
+        private int returnAddressOffset(String methodSymbolName, int recordedOffset) {
+            Integer functionOffset = symbolToOffset.get(methodSymbolName);
+            VMError.guarantee(functionOffset != null, "No code for %s in the batch object it was compiled into", methodSymbolName);
+            return LLVMWindowsSupport.returnAddressOffset(code, functionOffset, recordedOffset);
+        }
     }
 
     private Long parseTextSection(LLVMSectionIteratorRef sectionIterator, @SuppressWarnings("unused") LLVMSectionIteratorRef relocationsSectionIterator) {
@@ -171,7 +212,7 @@ public class LLVMObjectFileReader {
         return new LLVMStackMapInfo(stackMap.asByteBuffer(), relocationsSectionIterator);
     }
 
-    public void readStackMap(LLVMStackMapInfo info, CompilationResult compilation, ResolvedJavaMethod method, int id) {
+    public void readStackMap(LLVMStackMapInfo info, LLVMCodeSection codeSection, CompilationResult compilation, ResolvedJavaMethod method, int id) {
         String methodSymbolName = SYMBOL_PREFIX + ((HostedMethod) method).getUniqueShortName();
 
         long startPatchpointID = compilation.getInfopoints().stream().filter(ip -> ip.reason == InfopointReason.METHOD_START).findFirst()
@@ -194,8 +235,10 @@ public class LLVMObjectFileReader {
                     int referenceMapPcOffset = referenceMapSourcePatchpointId == null ? actualPcOffset : getReferenceMapPcOffset(info, referenceMapPatchpointId, actualPcOffset);
                     SubstrateReferenceMap referenceMap = new SubstrateReferenceMap();
                     info.forEachStatepointOffset(referenceMapPatchpointId, referenceMapPcOffset, referenceMap::markReferenceAtOffset);
-                    stackMapDumper.dumpCallSite(call, actualPcOffset, referenceMap);
-                    newInfopoints.add(new Call(call.target, actualPcOffset, call.size, call.direct, copyWithReferenceMap(call.debugInfo, referenceMap)));
+                    /* The record locates itself in the stack map; the frame is found by return address. */
+                    int returnAddressOffset = codeSection == null ? actualPcOffset : codeSection.returnAddressOffset(methodSymbolName, actualPcOffset);
+                    stackMapDumper.dumpCallSite(call, returnAddressOffset, referenceMap);
+                    newInfopoints.add(new Call(call.target, returnAddressOffset, call.size, call.direct, copyWithReferenceMap(call.debugInfo, referenceMap)));
                 }
             }
         }

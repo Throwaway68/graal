@@ -67,6 +67,7 @@ import com.oracle.svm.core.graal.llvm.LLVMToolchainUtils.BatchExecutor;
 import com.oracle.svm.core.graal.llvm.objectfile.LLVMObjectFile;
 import com.oracle.svm.core.graal.llvm.runtime.LLVMExceptionUnwind;
 import com.oracle.svm.core.graal.llvm.util.LLVMObjectFileReader;
+import com.oracle.svm.core.graal.llvm.util.LLVMObjectFileReader.LLVMCodeSection;
 import com.oracle.svm.core.graal.llvm.util.LLVMObjectFileReader.LLVMTextSectionInfo;
 import com.oracle.svm.core.graal.llvm.util.LLVMOptions;
 import com.oracle.svm.core.graal.llvm.util.LLVMStackMapInfo;
@@ -246,7 +247,9 @@ public class LLVMNativeImageCodeCache extends NativeImageCodeCache {
             llvmCompile(debug, getBatchCompiledFilename(batchId), getBatchOptimizedFilename(batchId), basePath, this::getFunctionName);
 
             LLVMStackMapInfo stackMap = objectFileReader.parseStackMap(getBatchCompiledPath(batchId));
-            IntStream.range(getBatchStart(batchId), getBatchEnd(batchId)).forEach(id -> objectFileReader.readStackMap(stackMap, compilationResultFor(methodIndex[id]), methodIndex[id], id));
+            /* On Windows a statepoint record can name the padding byte behind its call. */
+            LLVMCodeSection codeSection = LLVMWindowsSupport.isWindows() ? objectFileReader.parseCodeSection(getBatchCompiledPath(batchId)) : null;
+            IntStream.range(getBatchStart(batchId), getBatchEnd(batchId)).forEach(id -> objectFileReader.readStackMap(stackMap, codeSection, compilationResultFor(methodIndex[id]), methodIndex[id], id));
         });
     }
 

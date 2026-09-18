@@ -77,6 +77,34 @@ public final class LLVMWindowsSupport {
         return Platform.includedIn(Platform.WINDOWS.class);
     }
 
+    /** One-byte {@code nop}, the padding X86AsmPrinter emits after a call for Windows EH. */
+    private static final byte NOP = (byte) 0x90;
+
+    /**
+     * Offset of the return address of the call a statepoint stack map record belongs to, given the
+     * offset the record carries. Both are relative to the start of the function, and they are the
+     * same on every other platform.
+     * <p>
+     * LLVM emits the statepoint's stack map label at the end of the statepoint sequence, and on
+     * Windows that sequence can end in one padding byte: {@code LowerSTATEPOINT} calls
+     * {@code maybeEmitNopAfterCallForWindowsEH} between the call and the label, which emits a
+     * {@code nop} when the call is the last instruction before the epilogue, because the Windows
+     * unwinder does not run a function's exception handler while the instruction pointer is in the
+     * prologue or the epilogue. The record then names the first instruction of the epilogue, one
+     * past the address the call actually returns to, so a reference map registered under it belongs
+     * to an address no frame ever has: the GC either finds no reference map for the frame at all
+     * (the method has a single call) or silently uses the map of the call before it.
+     * <p>
+     * The padding is recognised from the byte in front of the recorded offset, which is sound in
+     * the object file {@code llc} writes: the call a record belongs to ends either in the four
+     * displacement bytes of a {@code rel32} call, which are still unrelocated and therefore zero,
+     * or in the ModRM byte of an indirect call, which is never {@code 0x90}.
+     */
+    public static int returnAddressOffset(byte[] code, int functionOffset, int recordedOffset) {
+        int padding = functionOffset + recordedOffset - 1;
+        return padding >= 0 && padding < code.length && code[padding] == NOP ? recordedOffset - 1 : recordedOffset;
+    }
+
     /**
      * Type of an SEH language handler:
      * {@code EXCEPTION_DISPOSITION handler(EXCEPTION_RECORD *, void *frame, CONTEXT *, DISPATCHER_CONTEXT *)}.
