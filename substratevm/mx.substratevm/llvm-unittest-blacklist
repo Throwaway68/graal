@@ -11,3 +11,22 @@
 # the LLVM backend". Without ForeignFunctionsFeature these tests cannot even link a MethodHandle to
 # a downcall stub. Not a Windows issue: linux-amd64 behaves the same.
 com.oracle.svm.test.foreign.*
+
+# Continuations, and therefore real (unbound) virtual threads, do not exist with the LLVM backend:
+# ContinuationsFeature.afterRegistration (ContinuationsFeature.java:89) computes
+#   supported = hostSupport && !DeoptimizationSupport.enabled() && !SubstrateOptions.useLLVMBackend()
+#               && SubstrateControlFlowIntegrity.singleton().continuationsSupported()
+# and when it is false the image initializes jdk.internal.vm.Continuation at run time so that any
+# use throws, while Thread.ofVirtual() hands out ThreadBuilders$BoundVirtualThread. Enabling
+# -H:+VMContinuations explicitly is a UserError naming the LLVM backend as the reason.
+# The four JFR tests below need what a bound virtual thread cannot give: the first runs its body on
+# a virtual thread and gets "NoClassDefFoundError: Could not initialize class
+# jdk.internal.vm.Continuation" -> "Event: jdk.ThreadSleep not found in recording!", the others
+# wait for jdk.VirtualThreadStart, for an unmounted virtual thread to leave the thread constant
+# pool, and for a virtual event thread on an old-object sample. Same four, on both platforms:
+# linux-amd64 run 35371119827 (256 tests, 4 failures), windows-amd64 run 35371088929 (229, 4).
+# Every other virtual-thread test in the suite passes under the backend.
+com.oracle.svm.test.jfr.TestJavaLevelVirtualThreadEvents
+com.oracle.svm.test.jfr.TestMirrorEvents
+com.oracle.svm.test.jfr.TestVirtualThreadsUnreferencedStreaming
+com.oracle.svm.test.jfr.oldobject.TestOldObjectVirtualThreadSampleEvent
