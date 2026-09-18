@@ -1180,6 +1180,21 @@ public class LLVMIRBuilder implements AutoCloseable {
     }
 
     public LLVMValueRef buildRoundEven(LLVMValueRef a) {
+        if (Platform.includedIn(Platform.WINDOWS.class)) {
+            /*
+             * Without SSE4.1 - and the backend compiles for the generic x86-64 CPU - llc lowers
+             * llvm.roundeven to a call to the C23 function `roundeven`. glibc and the macOS libm
+             * have it; MSVC's UCRT does not, so the image fails to link with "unresolved external
+             * symbol roundeven referenced in function ..." (windows-amd64 run 35372826559).
+             *
+             * `nearbyint` is the same function under the default rounding mode - round to nearest,
+             * ties to even, and, unlike `rint`, without raising inexact - and Substrate VM never
+             * changes the rounding mode, there being no Java API to do so. UCRT has had it since
+             * C99. Called by name rather than through llvm.nearbyint so that no optimization can
+             * canonicalize it back into the intrinsic.
+             */
+            return buildLibMUnaryOp("nearbyint", "nearbyintf", a);
+        }
         return buildIntrinsicOp("roundeven", a);
     }
 
