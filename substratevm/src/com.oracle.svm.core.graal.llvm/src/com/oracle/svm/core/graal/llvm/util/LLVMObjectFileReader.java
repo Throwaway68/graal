@@ -177,6 +177,7 @@ public class LLVMObjectFileReader {
         private final Map<String, Integer> symbolToOffset = new HashMap<>();
 
         private LLVMCodeSection(LLVMSectionInfo<byte[], SymbolOffset> sectionInfo) {
+            VMError.guarantee(sectionInfo.sectionInfo != null, "LLVM code section %s not found in the batch object", codeSectionName());
             this.code = sectionInfo.sectionInfo;
             for (SymbolOffset symbolOffset : sectionInfo.symbolInfo) {
                 symbolToOffset.put(symbolOffset.symbol, symbolOffset.offset);

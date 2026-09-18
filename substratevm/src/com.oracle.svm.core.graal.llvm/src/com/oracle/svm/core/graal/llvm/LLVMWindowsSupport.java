@@ -92,8 +92,11 @@ public final class LLVMWindowsSupport {
      * unwinder does not run a function's exception handler while the instruction pointer is in the
      * prologue or the epilogue. The record then names the first instruction of the epilogue, one
      * past the address the call actually returns to, so a reference map registered under it belongs
-     * to an address no frame ever has: the GC either finds no reference map for the frame at all
-     * (the method has a single call) or silently uses the map of the call before it.
+     * to an address no frame ever has. {@code CodeInfoDecoder.lookupStackReferenceMapIndex} returns
+     * a reference map only when the instruction pointer matches a recorded one exactly and
+     * {@code NO_REFERENCE_MAP} otherwise, so the failure is always loud: the first garbage
+     * collection that walks such a frame dies with "No reference map information found". It is
+     * never the map of some other call, and it does not depend on how many calls the method has.
      * <p>
      * The padding is recognised from the byte in front of the recorded offset, which is sound in
      * the object file {@code llc} writes: the call a record belongs to ends either in the four

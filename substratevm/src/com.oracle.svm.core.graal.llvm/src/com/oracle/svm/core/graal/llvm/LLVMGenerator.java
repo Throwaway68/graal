@@ -1245,9 +1245,15 @@ public class LLVMGenerator extends CoreProvidersDelegate implements LIRGenerator
              * getCallerSPOffset() is two words because llvm.frameaddress(0) is the frame-pointer
              * chain node on the platforms this backend grew up on: it points at the saved frame
              * pointer, the return address is the word above it, and the caller's stack pointer the
-             * word above that. On Win64 the same intrinsic is the establisher frame of the SEH
-             * unwind info instead - X86 lowers it to a fixed frame object, which comes out as this
-             * frame's own stack pointer - so those two words land inside this frame and every stack
+             * word above that. On Win64 the same intrinsic means the establisher frame of the SEH
+             * unwind info instead: X86TargetLowering::LowerFRAMEADDR takes its usesWindowsCFI()
+             * branch and returns a fixed frame object, which X86FrameLowering resolves to
+             * rbp - SEHFrameOffset. SEHFrameOffset is the prologue's own min(frame size, 128)
+             * rounded down to 16 - the Win64 UWOP_SET_FPREG encoding would allow up to 240, LLVM
+             * caps it at 128 - and the prologue sets rbp to rsp + SEHFrameOffset, so the intrinsic
+             * is this frame's stack pointer after the prologue for frames up to 128 bytes and
+             * rbp - 128, still inside this frame, for anything larger. Either way it is never the
+             * frame-pointer chain node, so those two words land inside this frame and every stack
              * walk that starts from a caller's stack pointer reads a local variable as a return
              * address. Take the return address slot, which is one word below the caller's stack
              * pointer on every target with a return address on the stack.
