@@ -31,10 +31,14 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
+
+import org.graalvm.nativeimage.ImageSingletons;
 
 import com.oracle.svm.core.BuildDirectoryProvider;
 import com.oracle.svm.shared.util.SubstrateUtil;
 import com.oracle.svm.core.util.InterruptImageBuilding;
+import com.oracle.svm.hosted.DeadlockWatchdog;
 import com.oracle.svm.hosted.c.util.FileUtils;
 
 public class LLVMToolchain {
@@ -64,15 +68,16 @@ public class LLVMToolchain {
 
             llvmProcess = llvmCommand.start();
 
-            try (InputStream inputStream = llvmProcess.getInputStream()) {
+            try (Heartbeat heartbeat = new Heartbeat(llvmProcess);
+                            InputStream inputStream = llvmProcess.getInputStream()) {
                 List<String> lines = FileUtils.readAllLines(inputStream);
 
                 FileUtils.traceCommandOutput(lines);
 
                 output = String.join(System.lineSeparator(), lines);
-            }
 
-            status = llvmProcess.waitFor();
+                status = llvmProcess.waitFor();
+            }
         } catch (IOException e) {
             status = -1;
             output = e.getMessage();
@@ -104,6 +109,54 @@ public class LLVMToolchain {
             runtimeDir = runtimeDir.resolve("jre");
         }
         return runtimeDir.resolve("lib").resolve("llvm").resolve("bin");
+    }
+
+    /**
+     * Tells the image generator's deadlock watchdog that the build is progressing while an LLVM
+     * tool runs.
+     *
+     * The watchdog aborts the build when nothing has reported activity for
+     * {@code -H:DeadlockWatchdogInterval} minutes (10 by default), which is why every long phase of
+     * the builder calls {@link DeadlockWatchdog#recordActivity}. An external tool cannot, and
+     * {@code CompletionExecutor} records activity only when a command <em>starts</em>. On PE/COFF
+     * that is fatal for a large image: {@code LLVMNativeImageCodeCache.createBitcodeBatches} uses a
+     * single batch there (there is no relocatable link on PE/COFF), so the whole image goes through
+     * one {@code llvm-link} invocation, and an image big enough to spend ten minutes in it is
+     * killed although it is making progress.
+     *
+     * The heartbeat reports activity only for as long as the process is actually alive, so a real
+     * deadlock inside the builder - with no LLVM tool running - is still detected as before.
+     */
+    private static final class Heartbeat implements AutoCloseable {
+        private static final long INTERVAL_MS = TimeUnit.MINUTES.toMillis(1);
+
+        private final Thread thread;
+        private volatile boolean stopped;
+
+        Heartbeat(Process process) {
+            thread = new Thread(() -> {
+                while (!stopped) {
+                    try {
+                        if (process.waitFor(INTERVAL_MS, TimeUnit.MILLISECONDS)) {
+                            return;
+                        }
+                    } catch (InterruptedException e) {
+                        return;
+                    }
+                    if (ImageSingletons.contains(DeadlockWatchdog.class)) {
+                        DeadlockWatchdog.singleton().recordActivity();
+                    }
+                }
+            }, "llvm-tool-heartbeat");
+            thread.setDaemon(true);
+            thread.start();
+        }
+
+        @Override
+        public void close() {
+            stopped = true;
+            thread.interrupt();
+        }
     }
 
     public static final class RunFailureException extends Exception {
