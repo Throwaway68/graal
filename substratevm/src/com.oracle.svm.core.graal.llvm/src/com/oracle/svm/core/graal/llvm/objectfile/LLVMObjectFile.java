@@ -383,7 +383,8 @@ public class LLVMObjectFile extends ObjectFile {
         return switch (getNativeFormat()) {
             case ELF -> "ld.lld";
             case PECOFF -> "lld-link";
-            case MACH_O -> "ld64.lld";
+            /* ld64.lld has no -r; LLVMToolchainUtils.nativeLink uses the platform linker instead. */
+            case MACH_O -> throw VMError.shouldNotReachHere("The relocatable link on Mach-O does not go through lld.");
             case LLVM -> throw VMError.shouldNotReachHere("Cannot have LLVM has native file format as it is linked to OS.");
         };
     }

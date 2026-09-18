@@ -141,8 +141,12 @@ public class LLVMToolchainUtils {
 
     public static void nativeLink(DebugContext debug, String outputPath, List<String> inputPaths, Path basePath, Function<String, String> outputPathFormat) {
         List<String> cmd = new ArrayList<>();
+        /* On Darwin the relocatable link is the platform linker's; see LLVMDarwinSupport. */
+        boolean platformLinker = LLVMOptions.CustomLD.hasBeenSet() || LLVMDarwinSupport.isDarwin();
         if (LLVMOptions.CustomLD.hasBeenSet()) {
             cmd.add(LLVMOptions.CustomLD.getValue());
+        } else if (LLVMDarwinSupport.isDarwin()) {
+            cmd.add(LLVMDarwinSupport.PARTIAL_LINKER);
         }
         cmd.add("-r");
         cmd.add("-o");
@@ -150,7 +154,7 @@ public class LLVMToolchainUtils {
         cmd.addAll(inputPaths);
 
         try {
-            if (LLVMOptions.CustomLD.hasBeenSet()) {
+            if (platformLinker) {
                 LLVMToolchain.runCommand(basePath, cmd);
             } else {
                 LLVMToolchain.runLLVMCommand(getLld(), basePath, cmd);
