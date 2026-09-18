@@ -58,6 +58,7 @@ import com.oracle.svm.guest.staging.core.heap.RestrictHeapAccess;
 import com.oracle.svm.core.hub.DynamicHub;
 import com.oracle.svm.core.interpreter.InterpreterFrameSourceInfo;
 import com.oracle.svm.core.interpreter.InterpreterSupport;
+import com.oracle.svm.core.jdk.UninterruptibleUtils;
 import com.oracle.svm.core.meta.SharedMethod;
 import com.oracle.svm.guest.staging.log.Log;
 import com.oracle.svm.espresso.classfile.descriptors.ByteSequence;
@@ -425,7 +426,17 @@ public final class InterpreterSupportImpl extends InterpreterSupport {
 
     @Uninterruptible(reason = CALLED_FROM_UNINTERRUPTIBLE_CODE, mayBeInlined = true)
     private static boolean isInterpreterBytecodeRoot(FrameInfoQueryResult frameInfo) {
-        return frameInfo.getSourceClass() == Interpreter.Root.class && BYTECODE_ROOT_METHOD_NAME.equals(frameInfo.getSourceMethodName());
+        if (frameInfo.getSourceClass() != Interpreter.Root.class) {
+            return false;
+        }
+        /*
+         * Not String.equals: it is not @Uninterruptible, and UninterruptibleAnnotationChecker
+         * rejects the image ("Missing @Uninterruptible annotation: ... calls
+         * java.lang.String.equals"). getSourceMethodName() may be null, which String.equals
+         * tolerated and UninterruptibleUtils.String.equals does not.
+         */
+        String sourceMethodName = frameInfo.getSourceMethodName();
+        return sourceMethodName != null && UninterruptibleUtils.String.equals(BYTECODE_ROOT_METHOD_NAME, sourceMethodName);
     }
 
     @Uninterruptible(reason = CALLED_FROM_UNINTERRUPTIBLE_CODE, mayBeInlined = true)
