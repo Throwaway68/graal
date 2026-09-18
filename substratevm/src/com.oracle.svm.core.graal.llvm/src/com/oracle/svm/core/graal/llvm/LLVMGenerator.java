@@ -1240,6 +1240,22 @@ public class LLVMGenerator extends CoreProvidersDelegate implements LIRGenerator
 
     @Override
     public Value emitReadCallerStackPointer(Stamp wordStamp) {
+        if (LLVMWindowsSupport.isWindows()) {
+            /*
+             * getCallerSPOffset() is two words because llvm.frameaddress(0) is the frame-pointer
+             * chain node on the platforms this backend grew up on: it points at the saved frame
+             * pointer, the return address is the word above it, and the caller's stack pointer the
+             * word above that. On Win64 the same intrinsic is the establisher frame of the SEH
+             * unwind info instead - X86 lowers it to a fixed frame object, which comes out as this
+             * frame's own stack pointer - so those two words land inside this frame and every stack
+             * walk that starts from a caller's stack pointer reads a local variable as a return
+             * address. Take the return address slot, which is one word below the caller's stack
+             * pointer on every target with a return address on the stack.
+             */
+            LLVMValueRef returnAddressSlot = builder.buildAddressOfReturnAddress();
+            LLVMValueRef callerSP = builder.buildAdd(builder.buildPtrToInt(returnAddressSlot), builder.constantLong(SubstrateTarget.getWordSize()));
+            return new LLVMVariable(callerSP);
+        }
         LLVMValueRef basePointer = builder.buildFrameAddress(builder.constantInt(0));
         LLVMValueRef callerSP = builder.buildAdd(builder.buildPtrToInt(basePointer), builder.constantLong(LLVMTargetSpecific.get().getCallerSPOffset()));
         return new LLVMVariable(callerSP);

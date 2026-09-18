@@ -1486,6 +1486,17 @@ public class LLVMIRBuilder implements AutoCloseable {
         return buildIntrinsicCall("llvm.frameaddress." + intrinsicType(rawPointerType()), frameAddressType, level);
     }
 
+    /**
+     * Address of the slot the current function's return address was pushed into, i.e. one word
+     * below the stack pointer of the caller. Unlike {@link #buildFrameAddress}, which means the
+     * frame-pointer chain on some targets and the frame base on others, this is the same place on
+     * every target that has a return address on the stack.
+     */
+    public LLVMValueRef buildAddressOfReturnAddress() {
+        LLVMTypeRef addressOfReturnAddressType = functionType(rawPointerType());
+        return buildIntrinsicCall("llvm.addressofreturnaddress." + intrinsicType(rawPointerType()), addressOfReturnAddressType);
+    }
+
     /* Atomic */
 
     public void buildFence() {
