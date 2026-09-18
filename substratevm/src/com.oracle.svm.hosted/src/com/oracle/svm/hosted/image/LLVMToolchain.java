@@ -129,7 +129,10 @@ public class LLVMToolchain {
      * killed although it is making progress.
      *
      * The heartbeat reports activity only for as long as the process is actually alive, so a real
-     * deadlock inside the builder - with no LLVM tool running - is still detected as before.
+     * deadlock inside the builder - with no LLVM tool running - is still detected as before. The
+     * price is that an LLVM tool which itself hangs is now invisible to the watchdog and will run
+     * until something else stops it: in CI that is the gate step's own timeout
+     * (`timeout-minutes` in `graalvm-gate.yml`), which is the backstop this relies on.
      */
     private static final class Heartbeat {
         private static final long INTERVAL_MS = TimeUnit.MINUTES.toMillis(1);

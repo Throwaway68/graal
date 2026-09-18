@@ -1,8 +1,11 @@
 # Test classes that cannot run in an image built by the Native Image LLVM backend.
 # One fnmatch pattern per line; `#` starts a comment. `_native_unittest` passes this file to
-# `--blacklist` only when the build arguments contain `--tool:llvm-backend` and the caller did not
-# pass a --blacklist of its own, so a build without the backend runs exactly the same tests as
-# before. Every entry names the reason; an entry without one does not belong here.
+# `--blacklist` only when the build arguments select the backend - either `--tool:llvm-backend` or
+# the `CompilerBackend=llvm` the macro sets, matched by `_llvm_backend_selected` - and the caller did
+# not pass a --blacklist of its own, so a build without the backend runs exactly the same tests as
+# before. The same condition drops the features the backend cannot register. Every entry names the
+# reason; an entry without one does not belong here. The full analysis of each group is in the
+# gha-graal journal, docs/journal/windows-llvm-backend.md, Findings 2026-09-18, task 2.
 #
 # The Foreign Function and Memory API is switched off with the LLVM backend by upstream policy:
 # SubstrateOptions.isForeignAPIEnabled() returns !useLLVMBackend(), and
@@ -10,6 +13,7 @@
 # -H:+ForeignAPISupport with "Support for the Foreign Function and Memory API is not available with
 # the LLVM backend". Without ForeignFunctionsFeature these tests cannot even link a MethodHandle to
 # a downcall stub. Not a Windows issue: linux-amd64 behaves the same.
+# Journal Findings 2026-09-18, task 2.
 com.oracle.svm.test.foreign.*
 
 # Continuations, and therefore real (unbound) virtual threads, do not exist with the LLVM backend:
@@ -26,6 +30,7 @@ com.oracle.svm.test.foreign.*
 # pool, and for a virtual event thread on an old-object sample. Same four, on both platforms:
 # linux-amd64 run 35371119827 (256 tests, 4 failures), windows-amd64 run 35371088929 (229, 4).
 # Every other virtual-thread test in the suite passes under the backend.
+# Journal Findings 2026-09-18, task 2.
 com.oracle.svm.test.jfr.TestJavaLevelVirtualThreadEvents
 com.oracle.svm.test.jfr.TestMirrorEvents
 com.oracle.svm.test.jfr.TestVirtualThreadsUnreferencedStreaming
@@ -40,7 +45,7 @@ com.oracle.svm.test.jfr.oldobject.TestOldObjectVirtualThreadSampleEvent
 # linux-amd64 run 35371140266 and windows-amd64 run 35371112347, both dying in the junit image of
 # GetPackageRuntimeClassLoadingTest with 400 such compilation failures. The other three classes
 # below carry the same `-H:+RuntimeClassLoading` in their @NativeImageBuildArgs and so build the
-# same interpreter into their images.
+# same interpreter into their images. Journal Findings 2026-09-18, task 2.
 com.oracle.svm.test.GetPackageRuntimeClassLoadingTest
 com.oracle.svm.test.RuntimeURLProtocolDisableTest
 com.oracle.svm.test.xml.RuntimeClassLoadingXmlApiReachabilityTest
