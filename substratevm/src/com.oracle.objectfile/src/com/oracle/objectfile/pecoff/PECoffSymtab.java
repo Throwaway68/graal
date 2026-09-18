@@ -279,13 +279,17 @@ public class PECoffSymtab extends ObjectFile.Element implements SymbolTable {
 
     @Override
     public Symbol newUndefinedEntry(String name, boolean isCode) {
+        return newUndefinedEntry(name, isCode, false);
+    }
+
+    public Symbol newUndefinedEntry(String name, boolean isCode, boolean exported) {
         int symClass;
         int symType;
 
         symClass = IMAGE_SYMBOL.IMAGE_SYM_CLASS_EXTERNAL;
         symType = isCode ? IMAGE_SYMBOL.IMAGE_SYM_DTYPE_FUNCTION : IMAGE_SYMBOL.IMAGE_SYM_DTYPE_NONE;
 
-        return addEntry(new Entry(name, 0, 0, symClass, symType, PseudoSection.UNDEF));
+        return addEntry(new Entry(name, 0, 0, symClass, symType, null, PseudoSection.UNDEF, exported));
     }
 
     private Entry addEntry(Entry entry) {

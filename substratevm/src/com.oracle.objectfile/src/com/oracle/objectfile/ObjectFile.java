@@ -1812,6 +1812,16 @@ public abstract class ObjectFile {
 
     public abstract Symbol createUndefinedSymbol(String name, boolean isCode);
 
+    /**
+     * Declares a symbol that another object of the same link defines, and asks for it to be
+     * exported from the image if {@code exported} is set. Only PE/COFF acts on that: an export
+     * there is a {@code /EXPORT:} linker directive and is needed even for a symbol this object does
+     * not define, while ELF and Mach-O export what the final link makes globally visible anyway.
+     */
+    public Symbol createUndefinedSymbol(String name, boolean isCode, @SuppressWarnings("unused") boolean exported) {
+        return createUndefinedSymbol(name, isCode);
+    }
+
     protected abstract SymbolTable createSymbolTable();
 
     public abstract SymbolTable getSymbolTable();

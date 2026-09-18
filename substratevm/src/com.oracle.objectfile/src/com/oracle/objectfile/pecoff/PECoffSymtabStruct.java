@@ -96,9 +96,12 @@ final class PECoffSymtabStruct {
             sym = new PECoffSymbolStruct(index, type, storageclass, secHdrIndex, offset);
             symbols.add(sym);
             /*
-             * Only add exports for external class symbols that are requested.
+             * Only add exports for external class symbols that are requested. An undefined symbol
+             * (secHdrIndex -1) can be exported too: `/EXPORT:<name>` names a symbol of the whole
+             * link, and with a separate code object - the LLVM backend - the entry points of a
+             * shared library are defined in that object and only declared here.
              */
-            if (exported && storageclass == IMAGE_SYMBOL.IMAGE_SYM_CLASS_EXTERNAL && secHdrIndex != -1) {
+            if (exported && storageclass == IMAGE_SYMBOL.IMAGE_SYM_CLASS_EXTERNAL) {
                 addDirective(name, type);
             }
         }

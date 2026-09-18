@@ -479,7 +479,14 @@ public class LLVMNativeImageCodeCache extends NativeImageCodeCache {
         return new NativeTextSectionImpl(buffer, objectFile, codeCache) {
             @Override
             protected void defineMethodSymbol(String name, boolean global, boolean exported, Element section, HostedMethod method, CompilationResult result) {
-                ObjectFile.Symbol symbol = objectFile.createUndefinedSymbol(name, true);
+                /*
+                 * The code lives in the linked LLVM object, so this object can only declare the
+                 * symbol - but `exported` must still be passed on. On PE/COFF an export is a
+                 * `/EXPORT:` directive, and without it a shared library exports none of its entry
+                 * points: `helloworld --shared` built one whose `run_main` ctypes could not find
+                 * (run 35357858740). Elsewhere the argument is ignored.
+                 */
+                ObjectFile.Symbol symbol = objectFile.createUndefinedSymbol(name, true, exported);
                 if (global) {
                     globalSymbols.add(symbol);
                 }
